@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layover — Deploy to Vercel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
+    }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; min-height: 100vh; padding: 60px 0 100px; }
+    .page { max-width: 820px; margin: 0 auto; padding: 0 40px; }
+
+    /* Header */
+    .doc-header { text-align: center; margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
+    .doc-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 28px; }
+    .doc-logo span { color: var(--gold); }
+    .doc-title { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; line-height: 1.1; margin-bottom: 14px; }
+    .doc-title em { font-style: italic; color: var(--gold); }
+    .doc-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.1em; line-height: 1.8; }
+    .doc-badges { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+    .badge { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; padding: 5px 14px; border: 1px solid var(--border); color: var(--muted); }
+    .badge.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); background: var(--gold-dim); }
+    .badge.green { border-color: rgba(122,224,168,0.3); color: var(--green); background: rgba(122,224,168,0.06); }
+
+    /* Steps */
+    .step { display: grid; grid-template-columns: 60px 1fr; gap: 0; margin-bottom: 48px; }
+    .step-num { padding-top: 2px; }
+    .step-circle { width: 36px; height: 36px; border: 1.5px solid var(--gold); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--gold); }
+    .step-line { width: 1px; background: var(--border); margin: 10px auto 0; height: calc(100% - 36px); min-height: 20px; }
+    .step-body { padding-bottom: 8px; }
+    .step-title { font-size: 16px; letter-spacing: 0.08em; color: var(--cream); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+    .step-title-icon { font-size: 18px; }
+    .step-desc { font-size: 11px; color: var(--muted); line-height: 1.8; letter-spacing: 0.04em; margin-bottom: 16px; }
+
+    /* Code blocks */
+    .code-block { background: var(--deep); border: 1px solid var(--border); padding: 16px 20px; margin: 12px 0; position: relative; }
+    .code-block pre { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); line-height: 1.7; overflow-x: auto; white-space: pre; }
+    .code-block .comment { color: var(--dim); }
+    .code-block .keyword { color: var(--gold); }
+    .code-block .string { color: var(--green); }
+    .copy-btn { position: absolute; top: 10px; right: 12px; background: none; border: 1px solid var(--border); padding: 4px 12px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); cursor: pointer; transition: all 0.2s; }
+    .copy-btn:hover { color: var(--gold); border-color: rgba(201,168,76,0.3); }
+
+    /* Info boxes */
+    .info-box { border-left: 2px solid var(--gold); background: var(--gold-dim); padding: 14px 18px; margin: 14px 0; }
+    .info-box p { font-size: 11px; color: var(--muted); line-height: 1.7; letter-spacing: 0.04em; }
+    .info-box.warn { border-color: var(--red); background: rgba(224,122,122,0.07); }
+    .info-box.tip { border-color: var(--green); background: rgba(122,224,168,0.06); }
+
+    /* File list */
+    .file-list { border: 1px solid var(--border); margin: 12px 0; }
+    .file-row { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--border2); font-size: 11px; }
+    .file-row:last-child { border-bottom: none; }
+    .file-icon { font-size: 13px; width: 20px; }
+    .file-name { font-family: 'DM Mono', monospace; color: var(--cream); flex: 1; }
+    .file-desc { font-size: 10px; color: var(--muted); }
+    .file-badge { font-size: 8px; letter-spacing: 0.12em; padding: 2px 8px; border: 1px solid rgba(122,224,168,0.25); color: var(--green); background: rgba(122,224,168,0.06); flex-shrink: 0; }
+
+    /* Checklist */
+    .checklist { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+    .check-row { display: flex; gap: 12px; align-items: flex-start; font-size: 11px; color: var(--muted); line-height: 1.6; letter-spacing: 0.04em; }
+    .check-icon { color: var(--gold); flex-shrink: 0; margin-top: 1px; }
+    .check-icon.done { color: var(--green); }
+
+    /* Section divider */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 52px 0; }
+    .section-label { font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin-bottom: 28px; display: flex; align-items: center; gap: 14px; }
+    .section-label::before { content: ''; width: 24px; height: 1px; background: var(--gold); display: block; }
+
+    /* Final card */
+    .final-card { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25); padding: 32px 36px; text-align: center; margin-top: 52px; }
+    .final-title { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; margin-bottom: 10px; }
+    .final-title em { font-style: italic; color: var(--gold); }
+    .final-sub { font-size: 11px; color: var(--muted); line-height: 1.8; letter-spacing: 0.06em; margin-bottom: 24px; }
+    .final-url { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--gold); letter-spacing: 0.08em; background: var(--night); border: 1px solid rgba(201,168,76,0.2); padding: 10px 24px; display: inline-block; }
+
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-header">
+    <div class="doc-logo">LAY<span>◆</span>VER</div>
+    <div class="doc-title">Deploy to<br><em>Vercel.</em></div>
+    <div class="doc-sub">Get your app live on the internet in under 10 minutes.<br>No coding experience needed — just follow the steps.</div>
+    <div class="doc-badges">
+      <span class="badge gold">Free Tier</span>
+      <span class="badge green">~5 min setup</span>
+      <span class="badge">No credit card</span>
+      <span class="badge">Custom domain ready</span>
+    </div>
+  </div>
+
+  <!-- ─── STEP 1 ─── -->
+  <div class="section-label">Before you start</div>
+
+  <div class="step">
+    <div class="step-num"><div class="step-circle">1</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">📁</span> Gather your files</div>
+      <div class="step-desc">Make sure you have all 8 HTML files downloaded from Claude. They should all be in the same folder on your computer.</div>
+      <div class="file-list">
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-landing.html</span><span class="file-desc">Public homepage + waitlist</span><span class="file-badge">Entry point</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-login.html</span><span class="file-desc">Sign in / sign up</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-dashboard.html</span><span class="file-desc">Home dashboard</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-trip-detail.html</span><span class="file-desc">Trip itinerary + chat</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-messages.html</span><span class="file-desc">Direct messages</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-friends.html</span><span class="file-desc">Friends + discover</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-profile.html</span><span class="file-desc">User profile</span></div>
+        <div class="file-row"><span class="file-icon">📄</span><span class="file-name">layover-explore.html</span><span class="file-desc">City explorer</span></div>
+      </div>
+      <div class="info-box tip"><p>💡 Create a folder on your Desktop called <strong>layover</strong> and put all 8 files inside it. This is your project folder.</p></div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">2</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">📝</span> Create an index file</div>
+      <div class="step-desc">Vercel needs a file called <strong>index.html</strong> as the entry point — the page that loads when someone visits your URL. Create a new file called <code style="color:var(--gold);font-size:11px">index.html</code> in your layover folder and paste this into it:</div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="comment">&lt;!-- index.html --&gt;</span>
+<span class="comment">&lt;!-- This just redirects visitors to your landing page --&gt;</span>
+<span class="keyword">&lt;meta</span> <span class="string">http-equiv="refresh"</span> <span class="string">content="0; url=layover-landing.html"</span><span class="keyword">&gt;</span></pre>
+      </div>
+      <div class="info-box"><p>This tells any browser that hits your root URL to immediately load <code style="color:var(--gold)">layover-landing.html</code>. That's it — you only need these 3 lines.</p></div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+  <div class="section-label">Deploy</div>
+
+  <!-- ─── STEP 3 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">3</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">🔗</span> Create a GitHub account (if needed)</div>
+      <div class="step-desc">Vercel deploys from GitHub. If you don't have a GitHub account, go to <strong>github.com</strong> and sign up for free — it takes 2 minutes.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">→</span>Go to <strong>github.com/signup</strong></div>
+        <div class="check-row"><span class="check-icon">→</span>Create a free account with your email</div>
+        <div class="check-row"><span class="check-icon">→</span>Verify your email address</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 4 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">4</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">📦</span> Create a GitHub repository</div>
+      <div class="step-desc">A repository (repo) is like a folder on GitHub that stores your project files. Once your files are in a repo, Vercel can see them.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">1</span>Click the <strong>+</strong> button (top right on GitHub) → <strong>New repository</strong></div>
+        <div class="check-row"><span class="check-icon">2</span>Name it <strong>layover</strong></div>
+        <div class="check-row"><span class="check-icon">3</span>Set it to <strong>Public</strong></div>
+        <div class="check-row"><span class="check-icon">4</span>Check <strong>Add a README file</strong></div>
+        <div class="check-row"><span class="check-icon">5</span>Click <strong>Create repository</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 5 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">5</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">⬆️</span> Upload your files to GitHub</div>
+      <div class="step-desc">You don't need to use the command line. GitHub has a drag-and-drop file uploader built right in.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">1</span>Inside your new repo, click <strong>Add file → Upload files</strong></div>
+        <div class="check-row"><span class="check-icon">2</span>Drag all 9 files from your layover folder into the upload area (the 8 HTML files + index.html)</div>
+        <div class="check-row"><span class="check-icon">3</span>Scroll down and click <strong>Commit changes</strong></div>
+      </div>
+      <div class="info-box tip"><p>💡 GitHub will show a loading bar as it uploads. Once complete, you'll see all 9 files listed in your repo. That means it worked.</p></div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 6 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">6</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">▲</span> Deploy on Vercel</div>
+      <div class="step-desc">Now the easy part. Vercel connects to your GitHub repo and publishes your site automatically.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">1</span>Go to <strong>vercel.com</strong> and click <strong>Sign Up</strong></div>
+        <div class="check-row"><span class="check-icon">2</span>Choose <strong>Continue with GitHub</strong> — this links your accounts</div>
+        <div class="check-row"><span class="check-icon">3</span>Click <strong>Add New → Project</strong></div>
+        <div class="check-row"><span class="check-icon">4</span>Find your <strong>layover</strong> repo in the list and click <strong>Import</strong></div>
+        <div class="check-row"><span class="check-icon">5</span>Leave all settings as-is (no build commands needed for HTML files)</div>
+        <div class="check-row"><span class="check-icon">6</span>Click <strong>Deploy</strong></div>
+      </div>
+      <div class="info-box"><p>Vercel will build and deploy in about 30 seconds. When it's done, you'll see a green checkmark and a live URL that looks like <code style="color:var(--gold)">layover-yourname.vercel.app</code>.</p></div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+  <div class="section-label">Polish</div>
+
+  <!-- ─── STEP 7 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">7</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">🔐</span> Update Supabase allowed URLs</div>
+      <div class="step-desc">Supabase only sends password reset emails and auth redirects to URLs you've pre-approved. Once you have your Vercel URL, add it to Supabase.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">1</span>Go to <strong>supabase.com</strong> → your project → <strong>Authentication → URL Configuration</strong></div>
+        <div class="check-row"><span class="check-icon">2</span>Under <strong>Site URL</strong>, replace <code style="color:var(--gold)">http://localhost</code> with your Vercel URL, e.g. <code style="color:var(--gold)">https://layover-yourname.vercel.app</code></div>
+        <div class="check-row"><span class="check-icon">3</span>Under <strong>Redirect URLs</strong>, add the same URL</div>
+        <div class="check-row"><span class="check-icon">4</span>Click <strong>Save</strong></div>
+      </div>
+      <div class="info-box warn"><p>⚠️ If you skip this step, password reset emails will link to localhost and won't work for real users.</p></div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 8 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">8</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">🌐</span> Add a custom domain (optional)</div>
+      <div class="step-desc">Want <code style="color:var(--gold)">layover.travel</code> instead of <code style="color:var(--gold)">layover-abc123.vercel.app</code>? You can buy a domain and connect it for free.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon">→</span>Buy a domain at <strong>namecheap.com</strong> or <strong>porkbun.com</strong> (~$10–12/year)</div>
+        <div class="check-row"><span class="check-icon">→</span>In Vercel: <strong>Project Settings → Domains → Add domain</strong></div>
+        <div class="check-row"><span class="check-icon">→</span>Copy the DNS records Vercel gives you</div>
+        <div class="check-row"><span class="check-icon">→</span>Paste them into your domain registrar's DNS settings</div>
+        <div class="check-row"><span class="check-icon">→</span>Wait 10–30 min — Vercel handles the SSL certificate automatically</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 9 ─── -->
+  <div class="step">
+    <div class="step-num"><div class="step-circle">9</div><div class="step-line"></div></div>
+    <div class="step-body">
+      <div class="step-title"><span class="step-title-icon">🚀</span> Ship updates instantly</div>
+      <div class="step-desc">Once you're set up, deploying new changes takes 3 clicks. Every time you push a file to GitHub, Vercel redeploys automatically.</div>
+      <div class="checklist">
+        <div class="check-row"><span class="check-icon done">✓</span>Edit a file (e.g. change text on the landing page)</div>
+        <div class="check-row"><span class="check-icon done">✓</span>Go to your GitHub repo → <strong>Upload files</strong> → drag the updated file in → <strong>Commit changes</strong></div>
+        <div class="check-row"><span class="check-icon done">✓</span>Vercel detects the change and redeploys in ~30 seconds</div>
+      </div>
+      <div class="info-box tip"><p>💡 Once you get comfortable, learn Git and the Vercel CLI. You'll be able to deploy with a single command from your terminal: <code style="color:var(--gold)">vercel --prod</code></p></div>
+    </div>
+  </div>
+
+  <!-- ─── Supabase tables reminder ─── -->
+  <hr class="divider"/>
+  <div class="section-label">Supabase setup checklist</div>
+
+  <div style="background:var(--deep);border:1px solid var(--border);padding:24px 28px;margin-bottom:48px">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:18px;line-height:1.7">Make sure these tables exist in your Supabase project before sharing with real users. Go to <strong>supabase.com → your project → Table Editor → New Table</strong>.</div>
+    <div class="file-list">
+      <div class="file-row" style="background:var(--card)">
+        <span class="file-icon">🗄</span>
+        <span class="file-name">waitlist</span>
+        <span class="file-desc">Columns: <code style="color:var(--gold);font-size:10px">email (text, unique), created_at (timestamptz, default now())</code></span>
+        <span class="file-badge">Already built</span>
+      </div>
+      <div class="file-row" style="background:var(--card)">
+        <span class="file-icon">🗄</span>
+        <span class="file-name">trips</span>
+        <span class="file-desc">Columns: <code style="color:var(--gold);font-size:10px">user_id (uuid), city (text), depart_date (date), return_date (date), notes (text), visibility (text)</code></span>
+        <span class="file-badge">Already built</span>
+      </div>
+      <div class="file-row" style="background:var(--card)">
+        <span class="file-icon">🗄</span>
+        <span class="file-name">Row-Level Security</span>
+        <span class="file-desc">Enable RLS on trips table, add policy: <code style="color:var(--gold);font-size:10px">auth.uid() = user_id</code></span>
+        <span class="file-badge" style="border-color:rgba(224,122,122,0.3);color:var(--red);background:rgba(224,122,122,0.07)">Do before launch</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINAL CARD -->
+  <div class="final-card">
+    <div class="final-title">You're <em>cleared for takeoff.</em></div>
+    <div class="final-sub">Once deployed, your app will be live at something like:<br>Share it with friends and start collecting real waitlist signups.</div>
+    <div class="final-url">https://layover-yourname.vercel.app</div>
+  </div>
+
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.parentElement.querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+  function showToast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>
