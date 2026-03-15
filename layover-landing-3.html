@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layover — Travel With Your People</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f;
+      --border: rgba(255,255,255,0.07); --gold: #c9a84c; --gold-light: #e8c97a;
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.2);
+      --glow: rgba(201,168,76,0.15);
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; overflow-x: hidden; cursor: none; }
+    .cursor { position: fixed; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
+    .cursor-ring { position: fixed; width: 32px; height: 32px; border: 1px solid rgba(201,168,76,0.4); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.18s ease; }
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 24px 48px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(10,10,15,0.95), transparent); }
+    .logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; letter-spacing: 0.2em; color: var(--cream); text-decoration: none; }
+    .logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 36px; align-items: center; list-style: none; }
+    .nav-links a { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--cream); }
+    .nav-cta { color: var(--gold) !important; border: 1px solid rgba(201,168,76,0.4); padding: 10px 22px; transition: all 0.25s !important; }
+    .nav-cta:hover { background: var(--glow) !important; border-color: var(--gold) !important; }
+    .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 0 10vw; position: relative; overflow: hidden; }
+    .stars { position: absolute; inset: 0; background: radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.6) 0%, transparent 100%), radial-gradient(1px 1px at 72% 8%, rgba(255,255,255,0.5) 0%, transparent 100%), radial-gradient(1px 1px at 45% 35%, rgba(255,255,255,0.4) 0%, transparent 100%), radial-gradient(1px 1px at 88% 55%, rgba(255,255,255,0.6) 0%, transparent 100%), radial-gradient(2px 2px at 55% 60%, rgba(201,168,76,0.3) 0%, transparent 100%); pointer-events: none; }
+    .horizon { position: absolute; bottom: -100px; left: 50%; transform: translateX(-50%); width: 900px; height: 400px; background: radial-gradient(ellipse at center bottom, rgba(201,168,76,0.08) 0%, transparent 65%); pointer-events: none; }
+    .flight-path { position: absolute; top: 30%; right: 8%; width: 380px; height: 180px; pointer-events: none; opacity: 0; animation: fadein 1.5s 1.8s forwards; }
+    .hero-tag { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 28px; opacity: 0; animation: slideup 0.8s 0.3s forwards; display: flex; align-items: center; gap: 14px; }
+    .hero-tag::before { content: ''; display: block; width: 40px; height: 1px; background: var(--gold); }
+    h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(58px, 8vw, 110px); font-weight: 300; line-height: 0.92; margin-bottom: 32px; opacity: 0; animation: slideup 0.9s 0.5s forwards; }
+    h1 em { font-style: italic; color: var(--gold); display: block; }
+    .hero-sub { font-size: 13px; line-height: 1.8; color: var(--muted); max-width: 400px; margin-bottom: 52px; letter-spacing: 0.04em; opacity: 0; animation: slideup 0.9s 0.75s forwards; }
+    .hero-actions { display: flex; gap: 20px; align-items: center; opacity: 0; animation: slideup 0.9s 1s forwards; }
+    .btn-primary { background: var(--gold); color: var(--night); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; padding: 16px 40px; border: none; cursor: none; transition: all 0.25s; text-decoration: none; display: inline-block; }
+    .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 12px 40px rgba(201,168,76,0.3); }
+    .btn-ghost { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 10px; transition: color 0.2s; cursor: none; }
+    .btn-ghost:hover { color: var(--cream); }
+    .btn-ghost::after { content: '→'; transition: transform 0.2s; }
+    .btn-ghost:hover::after { transform: translateX(4px); }
+    .scroll-hint { position: absolute; bottom: 40px; left: 10vw; display: flex; align-items: center; gap: 14px; opacity: 0; animation: fadein 1s 2.2s forwards; }
+    .scroll-hint span { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
+    .scroll-line { width: 60px; height: 1px; background: var(--dim); position: relative; overflow: hidden; }
+    .scroll-line::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: var(--gold); animation: scanline 2s 2.5s infinite; }
+    .stats-bar { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 32px 10vw; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--deep); }
+    .stat { padding: 0 32px; border-right: 1px solid var(--border); }
+    .stat:first-child { padding-left: 0; }
+    .stat:last-child { border-right: none; }
+    .stat-num { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; color: var(--cream); line-height: 1; margin-bottom: 6px; }
+    .stat-num span { color: var(--gold); }
+    .stat-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .section { padding: 120px 10vw; }
+    .section-tag { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
+    .section-tag::before { content: ''; display: block; width: 30px; height: 1px; background: var(--gold); }
+    h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(38px, 5vw, 64px); font-weight: 300; line-height: 1.05; margin-bottom: 72px; }
+    h2 em { font-style: italic; color: var(--gold); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 60px; }
+    .step { background: var(--deep); padding: 52px 40px; position: relative; overflow: hidden; transition: background 0.3s; }
+    .step:hover { background: var(--card); }
+    .step-num { font-family: 'Cormorant Garamond', serif; font-size: 80px; font-weight: 300; color: var(--border); line-height: 1; position: absolute; top: 16px; right: 24px; transition: color 0.3s; }
+    .step:hover .step-num { color: rgba(201,168,76,0.12); }
+    .step-icon { font-size: 28px; margin-bottom: 20px; }
+    .step-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; margin-bottom: 12px; }
+    .step-desc { font-size: 12px; line-height: 1.8; color: var(--muted); letter-spacing: 0.03em; }
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 120px; align-items: center; padding: 80px 10vw; }
+    .feature-list { margin-top: 48px; display: flex; flex-direction: column; }
+    .feature-item { padding: 24px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; align-items: flex-start; cursor: none; transition: all 0.2s; }
+    .feature-item:hover .feature-title { color: var(--gold); }
+    .feature-dot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; margin-top: 6px; flex-shrink: 0; transition: transform 0.2s; }
+    .feature-item:hover .feature-dot { transform: scale(1.5); }
+    .feature-title { font-size: 14px; letter-spacing: 0.05em; margin-bottom: 6px; transition: color 0.2s; }
+    .feature-desc { font-size: 11px; line-height: 1.7; color: var(--muted); letter-spacing: 0.03em; }
+    .phone-mock { position: relative; height: 580px; }
+    .mock-card { background: var(--card); border: 1px solid var(--border); border-radius: 2px; padding: 28px; position: absolute; box-shadow: 0 40px 80px rgba(0,0,0,0.5); }
+    .mock-card.main { width: 300px; top: 40px; left: 40px; animation: float 6s ease-in-out infinite; }
+    .mock-card.secondary { width: 240px; top: 200px; right: 0; animation: float 6s ease-in-out 2s infinite; background: var(--deep); }
+    .mock-card.tertiary { width: 200px; bottom: 40px; left: 0; animation: float 6s ease-in-out 4s infinite; }
+    .mock-label { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .mock-trip-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; margin-bottom: 6px; }
+    .mock-dates { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 20px; }
+    .mock-avatars { display: flex; }
+    .mock-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--card); background: var(--deep); margin-right: -10px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+    .overlap-badge { font-size: 10px; color: var(--gold); letter-spacing: 0.05em; margin-top: 14px; padding: 6px 12px; background: var(--glow); border: 1px solid rgba(201,168,76,0.2); display: inline-block; }
+    .mock-notification { display: flex; gap: 12px; align-items: flex-start; }
+    .notif-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .notif-text { font-size: 11px; line-height: 1.6; color: var(--muted); }
+    .notif-time { font-size: 9px; color: var(--dim); margin-top: 4px; }
+    .quotes { padding: 100px 10vw; background: var(--deep); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .quotes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); margin-top: 60px; }
+    .quote-card { background: var(--deep); padding: 44px 36px; transition: background 0.3s; }
+    .quote-card:hover { background: var(--card); }
+    .quote-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; font-style: italic; line-height: 1.5; color: var(--cream); margin-bottom: 28px; }
+    .quote-author { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); }
+    .quote-role { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* WAITLIST */
+    .cta-section { padding: 160px 10vw; text-align: center; position: relative; overflow: hidden; }
+    .cta-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 600px; height: 300px; background: radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 70%); pointer-events: none; }
+    .cta-section h2 { margin-bottom: 24px; position: relative; }
+    .cta-section > p { font-size: 13px; color: var(--muted); line-height: 1.8; max-width: 440px; margin: 0 auto 52px; letter-spacing: 0.04em; position: relative; }
+    .email-row { display: flex; border: 1px solid rgba(201,168,76,0.3); overflow: hidden; max-width: 420px; margin: 0 auto; transition: border-color 0.2s; position: relative; }
+    .email-row:focus-within { border-color: rgba(201,168,76,0.6); }
+    .email-input { flex: 1; background: rgba(10,10,15,0.6); border: 1px solid rgba(201,168,76,0.25); outline: none; padding: 14px 18px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); letter-spacing: 0.05em; transition: border-color 0.2s; }
+    .email-input:focus { border-color: rgba(201,168,76,0.55); }
+    .email-input::placeholder { color: var(--dim); }
+    .email-btn { background: var(--gold); border: none; padding: 16px 28px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; min-width: 90px; }
+    .email-btn:hover:not(:disabled) { background: var(--gold-light); }
+    .email-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    #signup-msg { font-size: 11px; margin-top: 16px; opacity: 0; transition: opacity 0.3s; letter-spacing: 0.1em; min-height: 18px; }
+
+    footer { border-top: 1px solid var(--border); padding: 48px 10vw; display: flex; justify-content: space-between; align-items: center; }
+    .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.2em; color: var(--muted); }
+    .footer-logo span { color: var(--gold); }
+    .footer-links { display: flex; gap: 32px; list-style: none; }
+    .footer-links a { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--muted); }
+    .footer-copy { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
+
+    @keyframes slideup { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scanline { 0% { left: -100%; } 100% { left: 100%; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    .reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.8s ease, transform 0.8s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+
+  <nav>
+    <a href="#" class="logo">LAY<span>◆</span>VER</a>
+    <ul class="nav-links">
+      <li><a href="#how">How it Works</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="layover-login.html" class="nav-cta" id="navSignIn">Sign In</a></li>
+      <li><a href="#signup" class="nav-cta" style="background:var(--gold);color:var(--night);padding:8px 18px" id="navGetStarted">Get Started</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="stars"></div>
+    <div class="horizon"></div>
+    <div class="flight-path">
+      <svg viewBox="0 0 380 180" fill="none">
+        <path id="flightArc" d="M10,160 Q120,20 370,40" stroke="rgba(201,168,76,0.25)" stroke-width="1" stroke-dasharray="4 6" fill="none"/>
+        <circle r="5" fill="var(--gold)" opacity="0.9">
+          <animateMotion dur="4s" repeatCount="indefinite" begin="2s"><mpath href="#flightArc"/></animateMotion>
+        </circle>
+      </svg>
+    </div>
+    <p class="hero-tag">Launching 2025</p>
+    <h1>Travel meets<br><em>your people.</em></h1>
+    <p class="hero-sub">See when friends are in the same city. Share trips, swap tips, and turn layovers into reunions.</p>
+    <div class="hero-actions">
+      <a href="#signup" class="btn-primary">Create Free Account</a>
+      <a href="layover-login.html" class="btn-ghost">Sign In</a>
+    </div>
+    <div class="scroll-hint"><div class="scroll-line"></div><span>Scroll</span></div>
+  </section>
+
+  <div class="stats-bar reveal">
+    <div class="stat"><div class="stat-num">12<span>k+</span></div><div class="stat-label">Beta Signups</div></div>
+    <div class="stat"><div class="stat-num">84<span>+</span></div><div class="stat-label">Cities Covered</div></div>
+    <div class="stat"><div class="stat-num">3.2<span>k</span></div><div class="stat-label">Trips Planned</div></div>
+    <div class="stat"><div class="stat-num">98<span>%</span></div><div class="stat-label">Would Recommend</div></div>
+  </div>
+
+  <section class="section" id="how">
+    <div class="reveal">
+      <p class="section-tag">The Experience</p>
+      <h2>Three steps to your<br><em>next reunion.</em></h2>
+    </div>
+    <div class="steps reveal">
+      <div class="step"><div class="step-num">01</div><div class="step-icon">✈️</div><div class="step-title">Log your trips</div><div class="step-desc">Add your upcoming travel — flights, cities, dates. Takes 30 seconds. Your itinerary stays private until you choose to share.</div></div>
+      <div class="step"><div class="step-num">02</div><div class="step-icon">👥</div><div class="step-title">Connect friends</div><div class="step-desc">Invite your travel circle. Layover quietly matches overlapping trips and notifies you when your paths cross.</div></div>
+      <div class="step"><div class="step-num">03</div><div class="step-icon">🌆</div><div class="step-title">Meet up, or just wave</div><div class="step-desc">Get a nudge when a friend lands in your city. Message them directly, share your plans, or just enjoy knowing they're nearby.</div></div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="features-text reveal">
+      <p class="section-tag">What's Inside</p>
+      <h2>Everything you need,<br><em>nothing you don't.</em></h2>
+      <div class="feature-list">
+        <div class="feature-item"><div class="feature-dot"></div><div><div class="feature-title">Real-time overlap alerts</div><div class="feature-desc">Instant notifications when a friend's trip overlaps yours — by city, by date, down to the hour.</div></div></div>
+        <div class="feature-item"><div class="feature-dot"></div><div><div class="feature-title">Trip privacy controls</div><div class="feature-desc">Share with everyone, close friends only, or keep it entirely private. You're always in control.</div></div></div>
+        <div class="feature-item"><div class="feature-dot"></div><div><div class="feature-title">Ephemeral trip chat</div><div class="feature-desc">Temporary group chats that auto-expire when your trip ends. No clutter, no history — just the moment.</div></div></div>
+        <div class="feature-item"><div class="feature-dot"></div><div><div class="feature-title">City pages & tips</div><div class="feature-desc">See where your friends have been and what they loved. Crowdsourced insider knowledge from people you trust.</div></div></div>
+      </div>
+    </div>
+    <div class="phone-mock reveal">
+      <div class="mock-card main">
+        <div class="mock-label">✈ Active Trip</div>
+        <div class="mock-trip-name">Tokyo → Newark</div>
+        <div class="mock-dates">Mar 14 – Mar 22, 2025</div>
+        <div class="mock-avatars"><div class="mock-avatar">A</div><div class="mock-avatar">T</div><div class="mock-avatar">J</div><div class="mock-avatar">+2</div></div>
+        <div class="overlap-badge">⚡ 2 friends overlap Mar 16–18</div>
+      </div>
+      <div class="mock-card secondary">
+        <div class="mock-label">🔔 Notification</div>
+        <div class="mock-notification"><div class="notif-dot"></div><div><div class="notif-text">Thad just landed in Newark. You overlap for 3 days.</div><div class="notif-time">Just now</div></div></div>
+      </div>
+      <div class="mock-card tertiary">
+        <div class="mock-label">💬 Trip Chat</div>
+        <div class="mock-notification"><div class="notif-dot"></div><div><div class="notif-text">Alex: Anyone want ramen tonight around 7pm?</div><div class="notif-time">2 min ago</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="quotes">
+    <div class="reveal">
+      <p class="section-tag">Early Feedback</p>
+      <h2>What beta users<br><em>are saying.</em></h2>
+    </div>
+    <div class="quotes-grid reveal">
+      <div class="quote-card"><div class="quote-text">"I had no idea my college roommate was in Berlin the same week I was. We hadn't seen each other in four years."</div><div class="quote-author">Sarah K.</div><div class="quote-role">Frequent traveler · NYC</div></div>
+      <div class="quote-card"><div class="quote-text">"This is the app I've wanted since I started traveling for work. My friends are everywhere — now I can actually find them."</div><div class="quote-author">Marcus T.</div><div class="quote-role">Remote worker · Austin</div></div>
+      <div class="quote-card"><div class="quote-text">"The ephemeral chat idea is genius. No more dead group chats from that one trip two years ago."</div><div class="quote-author">Priya N.</div><div class="quote-role">Digital nomad · Lisbon</div></div>
+    </div>
+  </section>
+
+  <section class="cta-section" id="signup">
+    <div class="cta-glow"></div>
+    <p class="section-tag" style="justify-content:center">Free to join</p>
+    <h2>Ready to<br><em>take off?</em></h2>
+    <p>Create your account in seconds. No credit card. No waitlist.</p>
+
+    <div id="signupForm" style="width:100%;max-width:400px;margin:32px auto 0;display:flex;flex-direction:column;gap:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <input class="email-input" type="text" id="su-first" placeholder="First name" style="width:100%"/>
+        <input class="email-input" type="text" id="su-last" placeholder="Last name" style="width:100%"/>
+      </div>
+      <input class="email-input" type="email" id="su-email" placeholder="Email address" style="width:100%" onkeydown="if(event.key==='Enter')doSignup()"/>
+      <div style="position:relative">
+        <input class="email-input" type="password" id="su-pw" placeholder="Create a password" style="width:100%;padding-right:44px" onkeydown="if(event.key==='Enter')doSignup()"/>
+        <button onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:14px;cursor:pointer;color:var(--muted)" id="pwEye">👁</button>
+      </div>
+      <button class="email-btn" id="su-btn" onclick="doSignup()" style="width:100%;padding:14px;font-size:11px;letter-spacing:0.18em">Create Account →</button>
+      <p id="su-msg" style="font-size:11px;letter-spacing:0.06em;text-align:center;min-height:18px;transition:opacity 0.3s"></p>
+      <p style="font-size:10px;color:var(--muted);text-align:center;letter-spacing:0.05em">Already have an account? <a href="layover-login.html" style="color:var(--gold);text-decoration:none">Sign in →</a></p>
+    </div>
+
+    <div id="signupSuccess" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:48px;margin-bottom:16px">✈️</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:10px">You're cleared for takeoff.</div>
+      <p style="font-size:12px;color:var(--muted);letter-spacing:0.06em;line-height:1.8;margin-bottom:24px">Welcome aboard, <strong id="su-welcome-name" style="color:var(--cream)"></strong>.<br>Check your email to confirm your account.</p>
+      <a href="layover-dashboard.html" class="email-btn" style="display:inline-block;text-decoration:none;padding:13px 32px;letter-spacing:0.18em;font-size:11px">Go to Dashboard →</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">LAY<span>◆</span>VER</div>
+    <ul class="footer-links"><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">Contact</a></li></ul>
+    <div class="footer-copy">© 2025 Layover</div>
+  </footer>
+
+  <script>
+    // ── Supabase setup ────────────────────────────────────────
+    const { createClient } = supabase;
+    const db = createClient(
+      'https://vlgypptzmxcdsdknlmmg.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+    );
+
+    // ── Sign Up ───────────────────────────────────────────────
+    function togglePw() {
+      const pw = document.getElementById('su-pw');
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+    }
+
+    async function doSignup() {
+      const first = document.getElementById('su-first').value.trim();
+      const last  = document.getElementById('su-last').value.trim();
+      const email = document.getElementById('su-email').value.trim();
+      const pw    = document.getElementById('su-pw').value;
+      const msg   = document.getElementById('su-msg');
+      const btn   = document.getElementById('su-btn');
+
+      msg.style.opacity = '0';
+
+      if (!first) { showMsg('Please enter your first name.', 'error'); return; }
+      if (!email || !email.includes('@')) { showMsg('Please enter a valid email.', 'error'); return; }
+      if (pw.length < 6) { showMsg('Password must be at least 6 characters.', 'error'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
+      try {
+        const { data, error } = await db.auth.signUp({
+          email,
+          password: pw,
+          options: {
+            data: { first_name: first, last_name: last, username: email.split('@')[0] }
+          }
+        });
+
+        if (error) {
+          if (error.message.includes('already registered')) {
+            showMsg('An account with this email already exists. <a href="layover-login.html" style="color:var(--gold)">Sign in →</a>', 'error');
+          } else {
+            showMsg(error.message, 'error');
+          }
+          btn.disabled = false;
+          btn.textContent = 'Create Account →';
+          return;
+        }
+
+        // Success
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('signupSuccess').style.display = 'block';
+        document.getElementById('su-welcome-name').textContent = first;
+
+        // If email confirmation is OFF in Supabase, redirect straight to dashboard
+        if (data.session) {
+          setTimeout(() => { window.location.href = 'layover-dashboard.html'; }, 2000);
+        }
+
+      } catch (err) {
+        showMsg('Something went wrong — please try again.', 'error');
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = 'Create Account →';
+      }
+    }
+
+    function showMsg(html, type) {
+      const msg = document.getElementById('su-msg');
+      msg.innerHTML = html;
+      msg.style.color = type === 'error' ? '#e07070' : 'var(--gold)';
+      msg.style.opacity = '1';
+    }
+
+    // ── Cursor ────────────────────────────────────────────────
+    const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+    let mx=0,my=0,rx=0,ry=0;
+    document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+    (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+    document.querySelectorAll('a,button,.step,.feature-item,.quote-card').forEach(el=>{
+      el.addEventListener('mouseenter',()=>{ ring.style.width='48px'; ring.style.height='48px'; ring.style.borderColor='rgba(201,168,76,0.6)'; cur.style.transform='translate(-50%,-50%) scale(1.5)'; });
+      el.addEventListener('mouseleave',()=>{ ring.style.width='32px'; ring.style.height='32px'; ring.style.borderColor='rgba(201,168,76,0.4)'; cur.style.transform='translate(-50%,-50%) scale(1)'; });
+    });
+
+    // ── Scroll reveal ─────────────────────────────────────────
+    new IntersectionObserver((entries)=>{ entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.add('visible'),i*80); }); },{threshold:0.1})
+      .observe && document.querySelectorAll('.reveal').forEach(r=>new IntersectionObserver(([e])=>{ if(e.isIntersecting) r.classList.add('visible'); },{threshold:0.1}).observe(r));
+
+    // ── Counter animation ─────────────────────────────────────
+    function animateCounters() {
+      document.querySelectorAll('.stat-num').forEach(el=>{
+        const txt=el.textContent, num=parseFloat(txt), suf=txt.replace(/[\d.]/g,'');
+        let s=0;
+        const step=ts=>{ if(!s)s=ts; const p=Math.min((ts-s)/1800,1),e=1-Math.pow(1-p,3); el.innerHTML=(num%1===0?Math.floor(e*num):(e*num).toFixed(1))+'<span>'+suf.trim()+'</span>'; if(p<1)requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      });
+    }
+    new IntersectionObserver(([e])=>{ if(e.isIntersecting) animateCounters(); },{threshold:0.5}).observe(document.querySelector('.stats-bar'));
+  </script>
+</body>
+</html>
