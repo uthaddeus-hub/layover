@@ -212,6 +212,55 @@
 
     /* PRIVACY BADGE */
     .privacy-badge { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; padding: 3px 10px; border: 1px solid var(--border); color: var(--dim); }
+
+    /* PHOTO MEMORIES */
+    .photo-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .photo-cell { aspect-ratio: 1; background: var(--deep); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: none; transition: all 0.2s; overflow: hidden; position: relative; }
+    .photo-cell:hover { border-color: rgba(201,168,76,0.25); background: var(--card); }
+    .photo-cell.has-photo { background: var(--card); border-color: var(--border); }
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .photo-cell-overlay { position: absolute; inset: 0; background: rgba(10,10,15,0.55); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+    .photo-cell:hover .photo-cell-overlay { opacity: 1; }
+    .photo-add-icon { font-size: 20px; opacity: 0.4; }
+    .photo-add-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+    .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(10,10,15,0.85)); padding: 20px 8px 8px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
+    .photo-overlay-btn { font-size: 9px; letter-spacing: 0.14em; color: var(--cream); background: rgba(201,168,76,0.8); border: none; padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; text-transform: uppercase; }
+    .add-photo-btn { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+    .upload-input { display: none; }
+
+    /* LIGHTBOX */
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.94); z-index: 500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 88vw; max-height: 78vh; object-fit: contain; border: 1px solid var(--border); }
+    .lightbox-caption { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+    .lightbox-close { position: absolute; top: 20px; right: 24px; background: none; border: none; font-size: 22px; color: var(--dim); cursor: none; transition: color 0.2s; }
+    .lightbox-close:hover { color: var(--cream); }
+
+    /* RECOMMENDATIONS */
+    .rec-list { display: flex; flex-direction: column; gap: 10px; }
+    .rec-card { background: var(--deep); border: 1px solid var(--border); padding: 16px 18px; transition: all 0.2s; cursor: none; }
+    .rec-card:hover { border-color: rgba(201,168,76,0.2); background: var(--card); }
+    .rec-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .rec-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .rec-meta { flex: 1; }
+    .rec-author { font-size: 11px; color: var(--cream); }
+    .rec-date { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; margin-top: 2px; }
+    .rec-cat { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; padding: 3px 9px; border: 1px solid rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); flex-shrink: 0; }
+    .rec-place { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; margin-bottom: 5px; }
+    .rec-desc { font-size: 11px; color: var(--muted); line-height: 1.7; letter-spacing: 0.03em; }
+    .rec-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .rec-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .rec-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.18); }
+    .rec-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .rec-btn.gold:hover { background: var(--gold-dim); }
+    .add-rec-form { background: var(--deep); border: 1px dashed rgba(201,168,76,0.2); padding: 18px; display: none; flex-direction: column; gap: 12px; margin-top: 4px; }
+    .add-rec-form.open { display: flex; }
+    .rec-input { background: var(--card); border: 1px solid var(--border); outline: none; padding: 10px 13px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); width: 100%; transition: border-color 0.2s; }
+    .rec-input:focus { border-color: rgba(201,168,76,0.4); }
+    .rec-input::placeholder { color: var(--dim); }
+    .rec-cat-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rec-cat-opt { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 12px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .rec-cat-opt.sel { border-color: rgba(201,168,76,0.35); color: var(--gold); background: var(--gold-dim); }
   </style>
 </head>
 <body>
@@ -456,6 +505,110 @@
 
       </div>
 
+
+        <!-- PHOTO MEMORIES -->
+        <div class="section-block fade-up" style="animation-delay:0.3s">
+          <div class="sec-header">
+            <span class="sec-title">📸 Memories</span>
+            <button class="sec-action" onclick="triggerUpload()">+ Add Photo</button>
+          </div>
+          <input type="file" id="photoUpload" class="upload-input" accept="image/*" multiple onchange="handlePhotoUpload(event)"/>
+          <div class="photo-grid" id="photoGrid">
+            <!-- demo photos -->
+            <div class="photo-cell has-photo" onclick="openLightbox('https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600','Shibuya crossing at dusk')">
+              <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400" alt="Tokyo"/>
+              <div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>
+              <div class="photo-caption">Shibuya crossing at dusk</div>
+            </div>
+            <div class="photo-cell has-photo" onclick="openLightbox('https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=600','Senso-ji temple morning')">
+              <img src="https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=400" alt="Tokyo"/>
+              <div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>
+              <div class="photo-caption">Senso-ji temple</div>
+            </div>
+            <div class="photo-cell add-photo-btn" onclick="triggerUpload()">
+              <div class="photo-add-icon">+</div>
+              <div class="photo-add-label">Add photo</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECOMMENDATIONS -->
+        <div class="section-block fade-up" style="animation-delay:0.4s">
+          <div class="sec-header">
+            <span class="sec-title">⭐ Recommendations</span>
+            <button class="sec-action" onclick="toggleRecForm()">+ Add Tip</button>
+          </div>
+
+          <!-- Add rec form -->
+          <div class="add-rec-form" id="addRecForm">
+            <input class="rec-input" type="text" id="rec-place" placeholder="Place name (e.g. Ichiran Ramen)"/>
+            <input class="rec-input" type="text" id="rec-desc" placeholder="Your tip or note…"/>
+            <div class="rec-cat-row" id="recCatRow">
+              <button class="rec-cat-opt sel" onclick="selRecCat(this,'Food')">🍜 Food</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Coffee')">☕ Coffee</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Nightlife')">🍸 Nightlife</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Culture')">🏛 Culture</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Views')">🌅 Views</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Shopping')">🛍 Shopping</button>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="m-btn-primary" style="flex:1" onclick="submitRec()">Post Tip →</button>
+              <button class="m-btn-ghost" onclick="toggleRecForm()">Cancel</button>
+            </div>
+          </div>
+
+          <div class="rec-list" id="recList">
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">A</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Alex Chen</div>
+                  <div class="rec-date">Added Mar 11</div>
+                </div>
+                <div class="rec-cat">🍜 Food</div>
+              </div>
+              <div class="rec-place">Ichiran Ramen</div>
+              <div class="rec-desc">Solo booths in Shibuya — perfect for a late night bowl. Go after midnight, no queue. Get the tonkotsu with extra firm noodles.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved to your list!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied to clipboard!','📋')">Share</button>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">T</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Thad Williams</div>
+                  <div class="rec-date">Added Mar 12</div>
+                </div>
+                <div class="rec-cat">☕ Coffee</div>
+              </div>
+              <div class="rec-place">Onibus Coffee, Nakameguro</div>
+              <div class="rec-desc">Best single-origin pour-overs in the city. Grab one and walk along the canal. The Nakameguro branch has outdoor seating.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved to your list!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">A</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Alex Chen</div>
+                  <div class="rec-date">Added Mar 12</div>
+                </div>
+                <div class="rec-cat">🍸 Nightlife</div>
+              </div>
+              <div class="rec-place">Golden Gai, Shinjuku</div>
+              <div class="rec-desc">Six tiny alleyways, 200 bars. Each holds about 8 people. Find a bar with a theme you like — there's one for every vibe. Go on a weeknight.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       <!-- RIGHT: Chat -->
       <div class="chat-panel" id="chatPanel">
         <div class="chat-header">
@@ -542,6 +695,13 @@
       </div>
 
     </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lbImg" src="" alt="memory"/>
+    <div class="lightbox-caption" id="lbCaption"></div>
+  </div>
   </main>
 </div>
 
@@ -549,6 +709,96 @@
 <div class="toast" id="toastEl"></div>
 
 <script>
+
+  // ── Photo memories ────────────────────────────────────────
+  function triggerUpload() {
+    document.getElementById('photoUpload').click();
+  }
+
+  function handlePhotoUpload(e) {
+    const files = Array.from(e.target.files);
+    const grid  = document.getElementById('photoGrid');
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const addCell = grid.querySelector('.add-photo-btn');
+        if (addCell) addCell.remove();
+        const cell = document.createElement('div');
+        cell.className = 'photo-cell has-photo';
+        const src = ev.target.result;
+        cell.innerHTML = `<img src="${src}" alt="memory"/><div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>`;
+        cell.onclick = () => openLightbox(src, file.name.replace(/\.[^.]+$/, ''));
+        grid.appendChild(cell);
+        const add = document.createElement('div');
+        add.className = 'photo-cell add-photo-btn';
+        add.innerHTML = '<div class="photo-add-icon">+</div><div class="photo-add-label">Add photo</div>';
+        add.onclick = triggerUpload;
+        grid.appendChild(add);
+        toast('Photo added!', '📸');
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  }
+
+  function openLightbox(src, caption) {
+    document.getElementById('lbImg').src = src;
+    document.getElementById('lbCaption').textContent = caption || '';
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+  // ── Recommendations ───────────────────────────────────────
+  let recCat = 'Food';
+
+  function toggleRecForm() {
+    const form = document.getElementById('addRecForm');
+    form.classList.toggle('open');
+    if (form.classList.contains('open')) document.getElementById('rec-place').focus();
+  }
+
+  function selRecCat(btn, cat) {
+    recCat = cat;
+    document.querySelectorAll('.rec-cat-opt').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  function submitRec() {
+    const place = document.getElementById('rec-place').value.trim();
+    const desc  = document.getElementById('rec-desc').value.trim();
+    if (!place) { toast('Enter a place name first', '⚠️'); return; }
+    const emojis = { Food:'🍜', Coffee:'☕', Nightlife:'🍸', Culture:'🏛', Views:'🌅', Shopping:'🛍' };
+    const emoji  = emojis[recCat] || '📍';
+    const myName    = window._myName    || 'You';
+    const myInitial = window._myInitial || '?';
+    const card = document.createElement('div');
+    card.className = 'rec-card';
+    card.style.animation = 'fadeUp 0.3s ease';
+    card.innerHTML = `
+      <div class="rec-top">
+        <div class="rec-av">${myInitial}</div>
+        <div class="rec-meta">
+          <div class="rec-author">${myName}</div>
+          <div class="rec-date">Just now</div>
+        </div>
+        <div class="rec-cat">${emoji} ${recCat}</div>
+      </div>
+      <div class="rec-place">${place}</div>
+      <div class="rec-desc">${desc || 'No description added.'}</div>
+      <div class="rec-actions">
+        <button class="rec-btn gold" onclick="toast('Saved!','⭐')">Save</button>
+        <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+      </div>`;
+    document.getElementById('recList').prepend(card);
+    document.getElementById('rec-place').value = '';
+    document.getElementById('rec-desc').value  = '';
+    document.getElementById('addRecForm').classList.remove('open');
+    toast('Tip posted!', '⭐');
+  }
+
   // ── Supabase ──────────────────────────────────────────────
   const { createClient } = supabase;
   const db = createClient(
@@ -581,6 +831,8 @@
       document.getElementById('myAv2').textContent = myInitial;
       document.getElementById('myMsgName').textContent = 'You';
       document.getElementById('myMsgName2').textContent = 'You';
+      window._myName    = myName;
+      window._myInitial = myInitial;
     }
 
     // Try to load real trip from URL param, fall back to demo

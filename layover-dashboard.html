@@ -214,6 +214,17 @@
     .m-btn-ghost { background: transparent; border: 1px solid var(--border); padding: 13px 20px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
     .m-btn-ghost:hover { border-color: rgba(255,255,255,0.15); color: var(--cream); }
 
+    /* CITY AUTOCOMPLETE */
+    .city-wrap { position: relative; }
+    .city-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid rgba(201,168,76,0.3); border-top: none; z-index: 50; max-height: 220px; overflow-y: auto; display: none; }
+    .city-dropdown.open { display: block; }
+    .city-opt { display: flex; align-items: center; gap: 12px; padding: 11px 14px; font-size: 12px; color: var(--muted); cursor: none; transition: all 0.15s; border-bottom: 1px solid var(--border2); }
+    .city-opt:last-child { border-bottom: none; }
+    .city-opt:hover, .city-opt.focused { background: var(--gold-dim); color: var(--cream); }
+    .city-opt-flag { font-size: 16px; flex-shrink: 0; }
+    .city-opt-name { flex: 1; }
+    .city-opt-country { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+
     /* PRIVACY TOGGLE */
     .privacy-row { display: flex; gap: 0; }
     .privacy-opt { flex: 1; padding: 10px 0; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; border: 1px solid var(--border); color: var(--muted); cursor: none; background: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-right: -1px; }
@@ -405,7 +416,11 @@
     <div class="modal-body">
       <div class="m-field">
         <label>Destination City</label>
-        <input type="text" id="t-city" placeholder="e.g. Tokyo, Paris, Dubai"/>
+        <div class="city-wrap">
+          <input type="text" id="t-city" placeholder="e.g. Tokyo, Paris, Dubai" autocomplete="off"
+            oninput="citySearch(this.value)" onkeydown="cityKey(event)" onfocus="citySearch(this.value)"/>
+          <div class="city-dropdown" id="cityDropdown"></div>
+        </div>
       </div>
       <div class="m-row">
         <div class="m-field">
@@ -605,6 +620,106 @@
   }
 
   // ── Modal ─────────────────────────────────────────────────
+
+  // ── City autocomplete ─────────────────────────────────────
+  const CITIES = [
+    {name:'Tokyo',country:'Japan',flag:'🇯🇵'},{name:'London',country:'UK',flag:'🇬🇧'},
+    {name:'Paris',country:'France',flag:'🇫🇷'},{name:'New York',country:'USA',flag:'🇺🇸'},
+    {name:'Dubai',country:'UAE',flag:'🇦🇪'},{name:'Singapore',country:'Singapore',flag:'🇸🇬'},
+    {name:'Barcelona',country:'Spain',flag:'🇪🇸'},{name:'Amsterdam',country:'Netherlands',flag:'🇳🇱'},
+    {name:'Berlin',country:'Germany',flag:'🇩🇪'},{name:'Rome',country:'Italy',flag:'🇮🇹'},
+    {name:'Milan',country:'Italy',flag:'🇮🇹'},{name:'Lisbon',country:'Portugal',flag:'🇵🇹'},
+    {name:'Madrid',country:'Spain',flag:'🇪🇸'},{name:'Vienna',country:'Austria',flag:'🇦🇹'},
+    {name:'Prague',country:'Czech Republic',flag:'🇨🇿'},{name:'Budapest',country:'Hungary',flag:'🇭🇺'},
+    {name:'Zurich',country:'Switzerland',flag:'🇨🇭'},{name:'Stockholm',country:'Sweden',flag:'🇸🇪'},
+    {name:'Copenhagen',country:'Denmark',flag:'🇩🇰'},{name:'Oslo',country:'Norway',flag:'🇳🇴'},
+    {name:'Helsinki',country:'Finland',flag:'🇫🇮'},{name:'Athens',country:'Greece',flag:'🇬🇷'},
+    {name:'Istanbul',country:'Turkey',flag:'🇹🇷'},{name:'Cairo',country:'Egypt',flag:'🇪🇬'},
+    {name:'Lagos',country:'Nigeria',flag:'🇳🇬'},{name:'Nairobi',country:'Kenya',flag:'🇰🇪'},
+    {name:'Cape Town',country:'South Africa',flag:'🇿🇦'},{name:'Johannesburg',country:'South Africa',flag:'🇿🇦'},
+    {name:'Mumbai',country:'India',flag:'🇮🇳'},{name:'Delhi',country:'India',flag:'🇮🇳'},
+    {name:'Bangalore',country:'India',flag:'🇮🇳'},{name:'Seoul',country:'South Korea',flag:'🇰🇷'},
+    {name:'Beijing',country:'China',flag:'🇨🇳'},{name:'Shanghai',country:'China',flag:'🇨🇳'},
+    {name:'Hong Kong',country:'Hong Kong',flag:'🇭🇰'},{name:'Bangkok',country:'Thailand',flag:'🇹🇭'},
+    {name:'Bali',country:'Indonesia',flag:'🇮🇩'},{name:'Jakarta',country:'Indonesia',flag:'🇮🇩'},
+    {name:'Kuala Lumpur',country:'Malaysia',flag:'🇲🇾'},{name:'Manila',country:'Philippines',flag:'🇵🇭'},
+    {name:'Sydney',country:'Australia',flag:'🇦🇺'},{name:'Melbourne',country:'Australia',flag:'🇦🇺'},
+    {name:'Auckland',country:'New Zealand',flag:'🇳🇿'},{name:'Los Angeles',country:'USA',flag:'🇺🇸'},
+    {name:'San Francisco',country:'USA',flag:'🇺🇸'},{name:'Chicago',country:'USA',flag:'🇺🇸'},
+    {name:'Miami',country:'USA',flag:'🇺🇸'},{name:'Austin',country:'USA',flag:'🇺🇸'},
+    {name:'Seattle',country:'USA',flag:'🇺🇸'},{name:'Boston',country:'USA',flag:'🇺🇸'},
+    {name:'Washington DC',country:'USA',flag:'🇺🇸'},{name:'Las Vegas',country:'USA',flag:'🇺🇸'},
+    {name:'Toronto',country:'Canada',flag:'🇨🇦'},{name:'Vancouver',country:'Canada',flag:'🇨🇦'},
+    {name:'Montreal',country:'Canada',flag:'🇨🇦'},{name:'Mexico City',country:'Mexico',flag:'🇲🇽'},
+    {name:'São Paulo',country:'Brazil',flag:'🇧🇷'},{name:'Rio de Janeiro',country:'Brazil',flag:'🇧🇷'},
+    {name:'Buenos Aires',country:'Argentina',flag:'🇦🇷'},{name:'Bogotá',country:'Colombia',flag:'🇨🇴'},
+    {name:'Lima',country:'Peru',flag:'🇵🇪'},{name:'Santiago',country:'Chile',flag:'🇨🇱'},
+    {name:'Reykjavik',country:'Iceland',flag:'🇮🇸'},{name:'Dublin',country:'Ireland',flag:'🇮🇪'},
+    {name:'Brussels',country:'Belgium',flag:'🇧🇪'},{name:'Warsaw',country:'Poland',flag:'🇵🇱'},
+    {name:'Kyoto',country:'Japan',flag:'🇯🇵'},{name:'Osaka',country:'Japan',flag:'🇯🇵'},
+    {name:'Taipei',country:'Taiwan',flag:'🇹🇼'},{name:'Hanoi',country:'Vietnam',flag:'🇻🇳'},
+    {name:'Ho Chi Minh City',country:'Vietnam',flag:'🇻🇳'},{name:'Marrakech',country:'Morocco',flag:'🇲🇦'},
+    {name:'Tel Aviv',country:'Israel',flag:'🇮🇱'},{name:'Doha',country:'Qatar',flag:'🇶🇦'},
+    {name:'Abu Dhabi',country:'UAE',flag:'🇦🇪'},{name:'Riyadh',country:'Saudi Arabia',flag:'🇸🇦'},
+    {name:'Newark',country:'USA',flag:'🇺🇸'},{name:'Edinburgh',country:'UK',flag:'🇬🇧'},
+    {name:'Manchester',country:'UK',flag:'🇬🇧'},{name:'Porto',country:'Portugal',flag:'🇵🇹'},
+  ];
+
+  let cityFocusIndex = -1;
+
+  function citySearch(q) {
+    const dd = document.getElementById('cityDropdown');
+    if (!q || q.length < 1) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+    const matches = CITIES.filter(c =>
+      c.name.toLowerCase().startsWith(q.toLowerCase()) ||
+      c.country.toLowerCase().startsWith(q.toLowerCase())
+    ).slice(0, 8);
+    if (!matches.length) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+    cityFocusIndex = -1;
+    dd.innerHTML = matches.map((c, i) =>
+      `<div class="city-opt" data-name="${c.name}" data-i="${i}" onclick="selectCity('${c.name}')">
+        <span class="city-opt-flag">${c.flag}</span>
+        <span class="city-opt-name">${c.name}</span>
+        <span class="city-opt-country">${c.country}</span>
+      </div>`
+    ).join('');
+    dd.classList.add('open');
+  }
+
+  function selectCity(name) {
+    document.getElementById('t-city').value = name;
+    document.getElementById('cityDropdown').classList.remove('open');
+    document.getElementById('cityDropdown').innerHTML = '';
+  }
+
+  function cityKey(e) {
+    const dd = document.getElementById('cityDropdown');
+    const opts = dd.querySelectorAll('.city-opt');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      cityFocusIndex = Math.min(cityFocusIndex + 1, opts.length - 1);
+      opts.forEach((o,i) => o.classList.toggle('focused', i === cityFocusIndex));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      cityFocusIndex = Math.max(cityFocusIndex - 1, 0);
+      opts.forEach((o,i) => o.classList.toggle('focused', i === cityFocusIndex));
+    } else if (e.key === 'Enter' && cityFocusIndex >= 0) {
+      e.preventDefault();
+      selectCity(opts[cityFocusIndex].dataset.name);
+    } else if (e.key === 'Escape') {
+      dd.classList.remove('open');
+    }
+  }
+
+  // Close dropdown on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.city-wrap')) {
+      const dd = document.getElementById('cityDropdown');
+      if (dd) dd.classList.remove('open');
+    }
+  });
+
   function openModal() {
     document.getElementById('modal').classList.add('open');
     document.getElementById('t-city').focus();
