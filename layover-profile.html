@@ -16,7 +16,7 @@
       --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
       --sidebar: 220px;
     }
-    html, body { height: 100%; overflow: hidden; }
+    html, body { height: 100%; }
     body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
 
     .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
@@ -45,7 +45,7 @@
     .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
 
     /* MAIN */
-    main { overflow-y: auto; display: flex; flex-direction: column; }
+    main { overflow-y: auto; display: flex; flex-direction: column; height: 100vh; min-width: 0; }
     main::-webkit-scrollbar { width: 4px; }
     main::-webkit-scrollbar-thumb { background: var(--border); }
 
@@ -55,6 +55,7 @@
       background: var(--deep);
       border-bottom: 1px solid var(--border);
       padding: 0;
+      flex-shrink: 0;
     }
     /* Animated map grid background */
     .hero-grid-bg {
@@ -83,7 +84,7 @@
 
     /* Profile body */
     .profile-body { padding: 0 36px 32px; position: relative; }
-    .avatar-row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: -36px; margin-bottom: 20px; }
+    .avatar-row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: -36px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
     .profile-av-wrap { position: relative; }
     .profile-av {
       width: 80px; height: 80px; border-radius: 50%;
@@ -109,7 +110,7 @@
     .meta-item span { color: var(--dim); }
 
     /* Stats strip */
-    .stats-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
+    .stats-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border-top: 1px solid var(--border); min-width: 0; }
     .stat-box { background: var(--deep); padding: 18px 0; text-align: center; transition: background 0.2s; cursor: none; }
     .stat-box:hover { background: var(--card); }
     .stat-val { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--cream); line-height: 1; }
@@ -117,13 +118,13 @@
     .stat-lbl { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 
     /* TAB BAR */
-    .tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 36px; background: var(--deep); position: sticky; top: 0; z-index: 5; flex-shrink: 0; }
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 36px; background: var(--deep); position: sticky; top: 0; z-index: 5; flex-shrink: 0; overflow-x: auto; }
     .tbar-item { padding: 14px 0; margin-right: 28px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-bottom: -1px; }
     .tbar-item.active { color: var(--gold); border-bottom-color: var(--gold); }
     .tbar-item:hover:not(.active) { color: var(--cream); }
 
     /* CONTENT */
-    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 300px; gap: 28px; }
+    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 280px; gap: 24px; min-width: 0; }
 
     /* TAB PANELS */
     .tab-panel { display: none; }
@@ -160,7 +161,7 @@
     .city-bubble.visited { border-color: rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); }
 
     /* RIGHT COLUMN */
-    .right-col { display: flex; flex-direction: column; gap: 20px; }
+    .right-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
     .widget { background: var(--card); border: 1px solid var(--border); }
     .widget-header { padding: 14px 18px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
@@ -192,7 +193,61 @@
     .style-tag { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border: 1px solid rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); }
 
     /* Edit profile modal */
+
+    /* PRESENCE TOGGLE */
+    .presence-setting { background: var(--card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .ps-row { display: flex; align-items: center; gap: 14px; }
+    .ps-icon { font-size: 20px; flex-shrink: 0; }
+    .ps-info { flex: 1; }
+    .ps-title { font-size: 12px; color: var(--cream); letter-spacing: 0.05em; margin-bottom: 3px; }
+    .ps-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; line-height: 1.6; }
+    .ps-city { font-size: 10px; color: var(--green); margin-top: 4px; letter-spacing: 0.06em; }
+    .toggle-wrap { flex-shrink: 0; }
+    .toggle { position: relative; width: 44px; height: 24px; cursor: none; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--deep); border: 1px solid var(--border); transition: all 0.25s; border-radius: 24px; }
+    .toggle input:checked + .toggle-track { background: rgba(122,224,168,0.15); border-color: rgba(122,224,168,0.4); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--dim); border-radius: 50%; transition: all 0.25s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--green); }
+    .presence-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border2); display: none; }
+    .presence-detail.show { display: block; }
+    .pd-city-row { display: flex; align-items: center; gap: 10px; }
+    .pd-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; position: relative; flex-shrink: 0; }
+    .pd-dot::before { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(122,224,168,0.3); animation: pdPulse 2s ease-out infinite; }
+    @keyframes pdPulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+    .pd-city-text { font-size: 11px; color: var(--green); letter-spacing: 0.06em; }
+    .pd-update-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-left: auto; }
+    .pd-update-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+    .pd-note { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; line-height: 1.6; margin-top: 10px; }
+
     .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,15,0.88); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; }
+
+    /* PRESENCE TOGGLE */
+    .presence-setting { background: var(--card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .ps-row { display: flex; align-items: center; gap: 14px; }
+    .ps-icon { font-size: 20px; flex-shrink: 0; }
+    .ps-info { flex: 1; }
+    .ps-title { font-size: 12px; color: var(--cream); letter-spacing: 0.05em; margin-bottom: 3px; }
+    .ps-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; line-height: 1.6; }
+    .ps-city { font-size: 10px; color: var(--green); margin-top: 4px; letter-spacing: 0.06em; }
+    .toggle-wrap { flex-shrink: 0; }
+    .toggle { position: relative; width: 44px; height: 24px; cursor: none; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--deep); border: 1px solid var(--border); transition: all 0.25s; border-radius: 24px; }
+    .toggle input:checked + .toggle-track { background: rgba(122,224,168,0.15); border-color: rgba(122,224,168,0.4); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--dim); border-radius: 50%; transition: all 0.25s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--green); }
+    .presence-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border2); display: none; }
+    .presence-detail.show { display: block; }
+    .pd-city-row { display: flex; align-items: center; gap: 10px; }
+    .pd-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; position: relative; flex-shrink: 0; }
+    .pd-dot::before { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(122,224,168,0.3); animation: pdPulse 2s ease-out infinite; }
+    @keyframes pdPulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+    .pd-city-text { font-size: 11px; color: var(--green); letter-spacing: 0.06em; }
+    .pd-update-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-left: auto; }
+    .pd-update-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+    .pd-note { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; line-height: 1.6; margin-top: 10px; }
+
     .modal-overlay.open { display: flex; }
     .modal { background: var(--deep); border: 1px solid var(--border); width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; animation: modalIn 0.22s ease; }
     @keyframes modalIn { from{opacity:0;transform:translateY(12px) scale(0.98)} to{opacity:1;transform:none} }
@@ -219,6 +274,18 @@
 
     .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.4s ease forwards; }
     @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* RESPONSIVE FIXES */
+    @media (max-width: 900px) {
+      .content { grid-template-columns: 1fr; }
+      .right-col { order: -1; }
+    }
+    @media (max-width: 600px) {
+      .profile-body { padding: 0 16px 24px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr); }
+      .avatar-actions { flex-wrap: wrap; }
+      .content { padding: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -481,6 +548,33 @@
       <div class="right-col fade-up" style="animation-delay:0.1s">
 
         <!-- Next trip -->
+        <!-- Live Presence Setting -->
+        <div class="presence-setting">
+          <div class="ps-row">
+            <div class="ps-icon">📍</div>
+            <div class="ps-info">
+              <div class="ps-title">Live Location Sharing</div>
+              <div class="ps-sub">Let friends see which city you're in right now. You control when it's on.</div>
+              <div class="ps-city" id="ps-city-display" style="display:none"></div>
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle">
+                <input type="checkbox" id="presenceToggle" onchange="handlePresenceToggle(this.checked)"/>
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div class="presence-detail" id="presenceDetail">
+            <div class="pd-city-row">
+              <div class="pd-dot"></div>
+              <div class="pd-city-text" id="pdCityText">Detecting your city…</div>
+              <button class="pd-update-btn" onclick="refreshLocation()">Refresh</button>
+            </div>
+            <div class="pd-note">Your city is visible to friends while this is on. It updates each time you open the app.</div>
+          </div>
+        </div>
+
         <div class="widget">
           <div class="widget-header">
             <span class="widget-title">Next Trip</span>
@@ -593,6 +687,110 @@
   let profile = { first: '', last: '', username: '', bio: '', city: '', freq: '', tags: '' };
 
   // ── Init ──────────────────────────────────────────────────
+
+  // ── Live presence (profile page) ──────────────────────────
+  async function initProfilePresence() {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return;
+
+      const { data } = await db
+        .from('presence')
+        .select('sharing, city, flag')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (data) {
+        document.getElementById('presenceToggle').checked = data.sharing;
+        if (data.sharing && data.city) {
+          showPresenceCity(data.city, data.flag || '📍');
+        }
+        if (data.sharing) {
+          document.getElementById('presenceDetail').classList.add('show');
+        }
+      }
+    } catch {
+      // Presence table not created yet — that's fine
+    }
+  }
+
+  async function handlePresenceToggle(on) {
+    const detail = document.getElementById('presenceDetail');
+    detail.classList.toggle('show', on);
+
+    if (on) {
+      toast('Detecting your city…');
+      refreshLocation();
+    } else {
+      toast('Location sharing turned off');
+      document.getElementById('ps-city-display').style.display = 'none';
+      await saveProfilePresence(false, null, null, null, null, null);
+    }
+  }
+
+  async function refreshLocation() {
+    if (!navigator.geolocation) {
+      toast('Geolocation not supported');
+      return;
+    }
+    document.getElementById('pdCityText').textContent = 'Detecting…';
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const result = await reverseGeocodeProfile(lat, lng);
+        if (result) {
+          showPresenceCity(result.city, result.flag);
+          await saveProfilePresence(true, result.city, result.country, result.flag, lat, lng);
+          toast('Location updated: ' + result.city + ' ' + result.flag);
+        }
+      },
+      (err) => {
+        document.getElementById('pdCityText').textContent = 'Permission denied';
+        if (err.code === 1) toast('Allow location access in your browser settings');
+      },
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }
+
+  function showPresenceCity(city, flag) {
+    document.getElementById('pdCityText').textContent = 'Currently in ' + city + ' ' + (flag || '');
+    const cityDisplay = document.getElementById('ps-city-display');
+    cityDisplay.textContent = '● ' + city;
+    cityDisplay.style.display = 'block';
+  }
+
+  async function reverseGeocodeProfile(lat, lng) {
+    try {
+      const res = await fetch(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=10',
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.county || 'Unknown';
+      const country = addr.country || '';
+      const code = (addr.country_code || '').toUpperCase();
+      const flag = code.length === 2
+        ? String.fromCodePoint(...[...code].map(ch => 0x1F1E0 + ch.charCodeAt(0) - 65))
+        : '🌍';
+      return { city, country, flag };
+    } catch { return null; }
+  }
+
+  async function saveProfilePresence(sharing, city, country, flag, lat, lng) {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return;
+      await db.from('presence').upsert({
+        user_id: session.user.id,
+        sharing, city, country, flag, lat, lng,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    } catch (e) {
+      console.warn('Presence not saved:', e.message);
+    }
+  }
+
   async function init() {
     const { data:{ session } } = await db.auth.getSession();
     if (session) {
