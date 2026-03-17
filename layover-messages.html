@@ -223,9 +223,132 @@
 
     .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.4s ease forwards; }
     @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* ══════════════════════════════════════════
+       MOBILE RESPONSIVE — all breakpoints
+    ══════════════════════════════════════════ */
+    .mob-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--deep); border-top: 1px solid var(--border);
+      z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none; padding: 6px 12px; cursor: pointer;
+      transition: color 0.2s; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+    .mob-tab:hover { color: var(--cream); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      main, .messages-shell, #hubView, #cityView { padding-bottom: 70px; }
+
+      /* Dashboard mobile */
+      .topbar { padding: 14px 16px; }
+      .main-grid { grid-template-columns: 1fr !important; }
+      .right-col { display: none; }
+      .trip-grid { grid-template-columns: 1fr !important; }
+      .stats-row { gap: 8px; }
+      .stat-card { padding: 14px 12px; }
+      .stat-num { font-size: 24px; }
+
+      /* Messages mobile */
+      .messages-shell { grid-template-columns: 1fr !important; }
+      .conv-list-panel { display: none; }
+      .conv-list-panel.mob-show { display: flex !important; position: fixed; inset: 0 0 70px 0; z-index: 50; }
+      #activeChatWrap { height: calc(100vh - 70px) !important; }
+      .chat-header { padding: 12px 16px; }
+      .chat-messages { padding: 12px 16px; }
+      .chat-footer { padding: 10px 16px 14px; }
+      .overlap-banner { margin: 8px 16px; }
+
+      /* Trip detail mobile */
+      .trip-content { grid-template-columns: 1fr !important; }
+      .chat-panel { height: 500px !important; }
+      .section-block { padding: 20px 16px; }
+      .trip-hero { padding: 20px 16px 16px; }
+      .trip-hero-top { flex-direction: column; gap: 12px; }
+      .trip-stat-row { gap: 16px; }
+
+      /* Friends mobile */
+      .friends-grid { grid-template-columns: 1fr !important; }
+      .discover-grid { grid-template-columns: 1fr !important; }
+      .content { padding: 16px !important; }
+      .topbar { flex-wrap: wrap; gap: 10px; }
+      .topbar-right { width: 100%; }
+      .topbar-right button, .topbar-right a { flex: 1; text-align: center; }
+
+      /* Profile mobile */
+      .profile-body { padding: 0 16px 20px; }
+      .avatar-actions { flex-wrap: wrap; gap: 8px; }
+      .pa-btn { font-size: 9px; padding: 8px 12px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat-box { padding: 12px 0; }
+      .profile-name { font-size: 28px; }
+      .content { grid-template-columns: 1fr !important; }
+      .right-col { order: -1; }
+
+      /* Explore mobile */
+      .hub-topbar { padding: 14px 16px; }
+      .hub-search-row { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .hub-scroll { padding: 16px; }
+      .city-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .city-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .city-content { grid-template-columns: 1fr !important; }
+      .city-main { padding: 16px; }
+      .city-sidebar { padding: 16px; border-right: none; border-top: 1px solid var(--border); }
+      .city-hero-body { flex-direction: column; gap: 16px; }
+      .city-hero-stats { flex-wrap: wrap; }
+      .city-name-big { font-size: 36px; }
+
+      /* General modals */
+      .modal { width: 95vw !important; margin: 0 auto; max-height: 92vh; }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 0 16px 16px; }
+
+      /* Hide cursor on mobile */
+      .cursor, .cursor-ring { display: none; }
+
+      /* Tab bars */
+      .page-tabs, .tab-bar { padding: 0 16px; overflow-x: auto; }
+      .ptab, .tbar-item { white-space: nowrap; }
+    }
+
+    @media (max-width: 480px) {
+      .city-grid { grid-template-columns: 1fr !important; }
+      .steps-grid { grid-template-columns: 1fr !important; }
+      .features-grid { grid-template-columns: 1fr !important; }
+      h1 { font-size: clamp(36px, 10vw, 72px) !important; }
+      .section-title { font-size: clamp(24px, 6vw, 40px) !important; }
+      .signup-card { padding: 24px 18px !important; }
+      .form-row { grid-template-columns: 1fr !important; }
+    }
+
+
+    /* LOADING STATES */
+    .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
   </style>
 </head>
 <body>
+<!-- PAGE LOADING SCREEN -->
+<div class="page-loading" id="pageLoader">
+  <div class="pl-logo">LAY<span>◆</span>VER</div>
+  <div class="pl-bar"></div>
+</div>
+
 
 <div class="cursor" id="cursor"></div>
 <div class="cursor-ring" id="cursorRing"></div>
@@ -244,12 +367,12 @@
       <div class="nav-label">Social</div>
       <a href="layover-messages.html" class="nav-item active"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
       <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
-      <a href="#" class="nav-item" onclick="toast&&toast('Alerts coming soon!')||showToast&&showToast('Alerts coming soon!')"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+      <a href="layover-alerts.html" class="nav-item"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
     </div>
     <div class="nav-section">
       <div class="nav-label">Account</div>
       <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
-      <a href="#" class="nav-item" onclick="toast&&toast('Settings coming soon!')||showToast&&showToast('Settings coming soon!')"><span class="nav-icon">⚙️</span> Settings</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
     </div>
     
     <div class="sidebar-footer">
@@ -734,6 +857,17 @@
   });
 
   init();
+
+  // Page load transition
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('done');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 400);
+  });
 </script>
 </body>
 </html>

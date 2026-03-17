@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layover — Trip Detail</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --red: #e07a7a; --blue: #7aaee0;
+      --sidebar: 220px;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    /* CURSOR */
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+
+    /* SHELL */
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100vh; }
+
+    /* SIDEBAR */
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-name { font-size: 11px; color: var(--cream); letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+
+    /* MAIN */
+    main { overflow-y: auto; display: flex; flex-direction: column; }
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* HERO HEADER */
+    .trip-hero {
+      position: relative;
+      padding: 52px 44px 40px;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--deep);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+    .hero-glow {
+      position: absolute; bottom: -80px; right: -80px;
+      width: 500px; height: 300px;
+      background: radial-gradient(ellipse, rgba(201,168,76,0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .breadcrumb { font-size: 10px; letter-spacing: 0.15em; color: var(--dim); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; position: relative; }
+    .breadcrumb a { color: var(--dim); text-decoration: none; transition: color 0.2s; cursor: none; }
+    .breadcrumb a:hover { color: var(--gold); }
+    .breadcrumb span { color: var(--border); }
+
+    .hero-body { display: flex; align-items: flex-end; justify-content: space-between; position: relative; flex-wrap: wrap; gap: 24px; }
+    .hero-left {}
+    .trip-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(201,168,76,0.25); padding: 5px 14px; background: var(--gold-dim); margin-bottom: 14px; }
+    .trip-badge .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: blink 1.5s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .trip-city { font-family: 'Cormorant Garamond', serif; font-size: clamp(40px, 5vw, 68px); font-weight: 300; line-height: 0.95; margin-bottom: 10px; }
+    .trip-city em { font-style: italic; color: var(--gold); }
+    .trip-dates-hero { font-size: 12px; color: var(--muted); letter-spacing: 0.12em; margin-bottom: 20px; }
+    .hero-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+    .chip { font-size: 10px; letter-spacing: 0.12em; padding: 6px 14px; border: 1px solid var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+    .chip.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); background: var(--gold-dim); }
+    .chip.green { border-color: rgba(122,224,168,0.3); color: var(--green); background: rgba(122,224,168,0.07); }
+
+    .hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+    .countdown-box { text-align: center; padding: 18px 28px; border: 1px solid var(--border); background: var(--card); }
+    .countdown-num { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--cream); line-height: 1; }
+    .countdown-lbl { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+    .hero-actions { display: flex; gap: 10px; }
+    .btn-sm { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; padding: 10px 18px; border: 1px solid var(--border); color: var(--muted); background: none; cursor: none; transition: all 0.2s; }
+    .btn-sm:hover { border-color: rgba(255,255,255,0.18); color: var(--cream); background: rgba(255,255,255,0.04); }
+    .btn-sm.gold { background: var(--gold); border-color: var(--gold); color: var(--night); }
+    .btn-sm.gold:hover { background: var(--gold-light); border-color: var(--gold-light); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }
+
+    /* CONTENT */
+    .trip-content { display: grid; grid-template-columns: 1fr 340px; gap: 0; flex: 1; }
+
+    /* LEFT: Itinerary + Overlap */
+    .trip-left { border-right: 1px solid var(--border); overflow-y: auto; }
+    .trip-left::-webkit-scrollbar { width: 3px; }
+    .trip-left::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .section-block { padding: 28px 36px; border-bottom: 1px solid var(--border); }
+    .sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .sec-title { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .sec-title::before { content: ''; width: 20px; height: 1px; background: var(--gold); display: block; }
+    .sec-action { font-size: 10px; letter-spacing: 0.12em; color: var(--gold); background: none; border: none; font-family: 'DM Mono', monospace; cursor: none; transition: color 0.2s; }
+    .sec-action:hover { color: var(--gold-light); }
+
+    /* ITINERARY */
+    .itinerary { display: flex; flex-direction: column; gap: 0; }
+    .day-block { margin-bottom: 24px; }
+    .day-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .day-label::after { content: ''; flex: 1; height: 1px; background: var(--border2); }
+    .activity-list { display: flex; flex-direction: column; gap: 0; padding-left: 14px; border-left: 1px solid var(--border); }
+    .activity {
+      display: flex; gap: 16px; align-items: flex-start;
+      padding: 12px 0 12px 18px; position: relative; cursor: none;
+      transition: all 0.2s;
+    }
+    .activity::before { content: ''; position: absolute; left: -5px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: var(--border); border: 1px solid var(--border); transition: all 0.2s; }
+    .activity:hover::before { background: var(--gold); border-color: var(--gold); }
+    .activity:hover { background: rgba(255,255,255,0.02); margin-left: -14px; padding-left: 32px; }
+    .act-time { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; width: 48px; flex-shrink: 0; margin-top: 2px; }
+    .act-icon { font-size: 16px; flex-shrink: 0; }
+    .act-body { flex: 1; }
+    .act-name { font-size: 13px; color: var(--cream); margin-bottom: 3px; letter-spacing: 0.03em; }
+    .act-detail { font-size: 10px; color: var(--muted); letter-spacing: 0.05em; line-height: 1.6; }
+    .act-tag { display: inline-block; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 8px; margin-top: 6px; }
+    .act-tag.food { background: rgba(201,168,76,0.1); color: var(--gold); }
+    .act-tag.transport { background: rgba(122,174,224,0.1); color: var(--blue); }
+    .act-tag.hotel { background: rgba(122,224,168,0.1); color: var(--green); }
+    .act-tag.explore { background: rgba(224,122,122,0.1); color: var(--red); }
+
+    /* ADD ACTIVITY */
+    .add-activity-row { display: flex; gap: 10px; align-items: center; padding: 10px 0 0 18px; }
+    .add-act-input { flex: 1; background: var(--card); border: 1px solid var(--border); outline: none; padding: 10px 14px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); transition: border-color 0.2s; }
+    .add-act-input:focus { border-color: rgba(201,168,76,0.4); }
+    .add-act-input::placeholder { color: var(--dim); }
+    .add-act-btn { background: var(--gold); border: none; padding: 10px 16px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.15em; color: var(--night); cursor: none; transition: background 0.2s; white-space: nowrap; }
+    .add-act-btn:hover { background: var(--gold-light); }
+
+    /* FRIEND OVERLAPS */
+    .overlap-grid { display: flex; flex-direction: column; gap: 12px; }
+    .overlap-card { background: var(--deep); border: 1px solid var(--border); padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; cursor: none; transition: all 0.2s; position: relative; overflow: hidden; }
+    .overlap-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); transform: scaleY(0); transition: transform 0.2s; }
+    .overlap-card:hover { background: var(--card); border-color: rgba(201,168,76,0.2); }
+    .overlap-card:hover::before { transform: scaleY(1); }
+    .ov-av { width: 36px; height: 36px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.25); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold); flex-shrink: 0; }
+    .ov-name { font-size: 13px; color: var(--cream); margin-bottom: 4px; }
+    .ov-dates { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 6px; }
+    .ov-badge { display: inline-block; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; padding: 3px 10px; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+    .ov-actions { margin-top: 10px; display: flex; gap: 8px; }
+    .ov-btn { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--border); background: none; color: var(--muted); font-family: 'DM Mono', monospace; cursor: none; transition: all 0.2s; }
+    .ov-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.15); }
+    .ov-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .ov-btn.gold:hover { background: var(--gold-dim); }
+
+    /* RIGHT: Chat panel */
+    .chat-panel { display: flex; flex-direction: column; height: calc(100vh - 240px); background: var(--night); }
+    .chat-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .chat-header-info { flex: 1; }
+    .chat-title { font-size: 12px; color: var(--cream); letter-spacing: 0.08em; }
+    .chat-sub { font-size: 9px; color: var(--dim); letter-spacing: 0.1em; margin-top: 2px; }
+    .chat-expire { font-size: 9px; color: var(--gold); letter-spacing: 0.1em; padding: 3px 10px; border: 1px solid rgba(201,168,76,0.2); background: var(--gold-dim); }
+    .chat-avatars { display: flex; }
+    .chat-av { width: 22px; height: 22px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid var(--night); margin-right: -6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--gold); }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+    .chat-messages::-webkit-scrollbar { width: 3px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .msg { display: flex; gap: 10px; align-items: flex-end; }
+    .msg.mine { flex-direction: row-reverse; }
+    .msg-av { width: 24px; height: 24px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--gold); flex-shrink: 0; }
+    .msg-body { max-width: 72%; }
+    .msg-name { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; margin-bottom: 4px; }
+    .mine .msg-name { text-align: right; }
+    .msg-bubble { padding: 10px 14px; font-size: 11px; line-height: 1.6; letter-spacing: 0.03em; }
+    .msg-bubble.theirs { background: var(--card); border: 1px solid var(--border); color: var(--muted); }
+    .msg-bubble.mine-b { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25); color: var(--cream); }
+    .msg-time { font-size: 9px; color: var(--dim); margin-top: 3px; letter-spacing: 0.06em; }
+    .mine .msg-time { text-align: right; }
+
+    .typing-indicator { display: flex; gap: 10px; align-items: center; padding: 0 4px; }
+    .typing-dots { display: flex; gap: 4px; }
+    .typing-dots span { width: 5px; height: 5px; background: var(--dim); border-radius: 50%; animation: typingBounce 1.2s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+    .typing-name { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; }
+
+    .chat-input-row { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-shrink: 0; }
+    .chat-input { flex: 1; background: var(--card); border: 1px solid var(--border); outline: none; padding: 11px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .chat-input:focus { border-color: rgba(201,168,76,0.4); }
+    .chat-input::placeholder { color: var(--dim); }
+    .chat-send { background: var(--gold); border: none; padding: 11px 16px; font-size: 14px; cursor: none; transition: background 0.2s; flex-shrink: 0; }
+    .chat-send:hover { background: var(--gold-light); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 13px 18px; font-size: 11px; letter-spacing: 0.06em; color: var(--cream); z-index: 1000; transform: translateY(16px); opacity: 0; transition: all 0.3s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Animate in */
+    .fade-up { opacity: 0; transform: translateY(12px); animation: fadeUp 0.45s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* PRIVACY BADGE */
+    .privacy-badge { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; padding: 3px 10px; border: 1px solid var(--border); color: var(--dim); }
+
+    /* PHOTO MEMORIES */
+    .photo-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .photo-cell { aspect-ratio: 1; background: var(--deep); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: none; transition: all 0.2s; overflow: hidden; position: relative; }
+    .photo-cell:hover { border-color: rgba(201,168,76,0.25); background: var(--card); }
+    .photo-cell.has-photo { background: var(--card); border-color: var(--border); }
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+    .photo-cell-overlay { position: absolute; inset: 0; background: rgba(10,10,15,0.55); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+    .photo-cell:hover .photo-cell-overlay { opacity: 1; }
+    .photo-add-icon { font-size: 20px; opacity: 0.4; }
+    .photo-add-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+    .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(10,10,15,0.85)); padding: 20px 8px 8px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
+    .photo-overlay-btn { font-size: 9px; letter-spacing: 0.14em; color: var(--cream); background: rgba(201,168,76,0.8); border: none; padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; text-transform: uppercase; }
+    .add-photo-btn { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+    .upload-input { display: none; }
+
+    /* LIGHTBOX */
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.94); z-index: 500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 88vw; max-height: 78vh; object-fit: contain; border: 1px solid var(--border); }
+    .lightbox-caption { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+    .lightbox-close { position: absolute; top: 20px; right: 24px; background: none; border: none; font-size: 22px; color: var(--dim); cursor: none; transition: color 0.2s; }
+    .lightbox-close:hover { color: var(--cream); }
+
+    /* RECOMMENDATIONS */
+    .rec-list { display: flex; flex-direction: column; gap: 10px; }
+    .rec-card { background: var(--deep); border: 1px solid var(--border); padding: 16px 18px; transition: all 0.2s; cursor: none; }
+    .rec-card:hover { border-color: rgba(201,168,76,0.2); background: var(--card); }
+    .rec-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .rec-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .rec-meta { flex: 1; }
+    .rec-author { font-size: 11px; color: var(--cream); }
+    .rec-date { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; margin-top: 2px; }
+    .rec-cat { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; padding: 3px 9px; border: 1px solid rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); flex-shrink: 0; }
+    .rec-place { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 300; margin-bottom: 5px; }
+    .rec-desc { font-size: 11px; color: var(--muted); line-height: 1.7; letter-spacing: 0.03em; }
+    .rec-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .rec-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .rec-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.18); }
+    .rec-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .rec-btn.gold:hover { background: var(--gold-dim); }
+    .add-rec-form { background: var(--deep); border: 1px dashed rgba(201,168,76,0.2); padding: 18px; display: none; flex-direction: column; gap: 12px; margin-top: 4px; }
+    .add-rec-form.open { display: flex; }
+    .rec-input { background: var(--card); border: 1px solid var(--border); outline: none; padding: 10px 13px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); width: 100%; transition: border-color 0.2s; }
+    .rec-input:focus { border-color: rgba(201,168,76,0.4); }
+    .rec-input::placeholder { color: var(--dim); }
+    .rec-cat-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rec-cat-opt { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 12px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .rec-cat-opt.sel { border-color: rgba(201,168,76,0.35); color: var(--gold); background: var(--gold-dim); }
+
+    /* ══════════════════════════════════════════
+       MOBILE RESPONSIVE — all breakpoints
+    ══════════════════════════════════════════ */
+    .mob-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--deep); border-top: 1px solid var(--border);
+      z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none; padding: 6px 12px; cursor: pointer;
+      transition: color 0.2s; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+    .mob-tab:hover { color: var(--cream); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      main, .messages-shell, #hubView, #cityView { padding-bottom: 70px; }
+
+      /* Dashboard mobile */
+      .topbar { padding: 14px 16px; }
+      .main-grid { grid-template-columns: 1fr !important; }
+      .right-col { display: none; }
+      .trip-grid { grid-template-columns: 1fr !important; }
+      .stats-row { gap: 8px; }
+      .stat-card { padding: 14px 12px; }
+      .stat-num { font-size: 24px; }
+
+      /* Messages mobile */
+      .messages-shell { grid-template-columns: 1fr !important; }
+      .conv-list-panel { display: none; }
+      .conv-list-panel.mob-show { display: flex !important; position: fixed; inset: 0 0 70px 0; z-index: 50; }
+      #activeChatWrap { height: calc(100vh - 70px) !important; }
+      .chat-header { padding: 12px 16px; }
+      .chat-messages { padding: 12px 16px; }
+      .chat-footer { padding: 10px 16px 14px; }
+      .overlap-banner { margin: 8px 16px; }
+
+      /* Trip detail mobile */
+      .trip-content { grid-template-columns: 1fr !important; }
+      .chat-panel { height: 500px !important; }
+      .section-block { padding: 20px 16px; }
+      .trip-hero { padding: 20px 16px 16px; }
+      .trip-hero-top { flex-direction: column; gap: 12px; }
+      .trip-stat-row { gap: 16px; }
+
+      /* Friends mobile */
+      .friends-grid { grid-template-columns: 1fr !important; }
+      .discover-grid { grid-template-columns: 1fr !important; }
+      .content { padding: 16px !important; }
+      .topbar { flex-wrap: wrap; gap: 10px; }
+      .topbar-right { width: 100%; }
+      .topbar-right button, .topbar-right a { flex: 1; text-align: center; }
+
+      /* Profile mobile */
+      .profile-body { padding: 0 16px 20px; }
+      .avatar-actions { flex-wrap: wrap; gap: 8px; }
+      .pa-btn { font-size: 9px; padding: 8px 12px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat-box { padding: 12px 0; }
+      .profile-name { font-size: 28px; }
+      .content { grid-template-columns: 1fr !important; }
+      .right-col { order: -1; }
+
+      /* Explore mobile */
+      .hub-topbar { padding: 14px 16px; }
+      .hub-search-row { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .hub-scroll { padding: 16px; }
+      .city-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .city-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .city-content { grid-template-columns: 1fr !important; }
+      .city-main { padding: 16px; }
+      .city-sidebar { padding: 16px; border-right: none; border-top: 1px solid var(--border); }
+      .city-hero-body { flex-direction: column; gap: 16px; }
+      .city-hero-stats { flex-wrap: wrap; }
+      .city-name-big { font-size: 36px; }
+
+      /* General modals */
+      .modal { width: 95vw !important; margin: 0 auto; max-height: 92vh; }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 0 16px 16px; }
+
+      /* Hide cursor on mobile */
+      .cursor, .cursor-ring { display: none; }
+
+      /* Tab bars */
+      .page-tabs, .tab-bar { padding: 0 16px; overflow-x: auto; }
+      .ptab, .tbar-item { white-space: nowrap; }
+    }
+
+    @media (max-width: 480px) {
+      .city-grid { grid-template-columns: 1fr !important; }
+      .steps-grid { grid-template-columns: 1fr !important; }
+      .features-grid { grid-template-columns: 1fr !important; }
+      h1 { font-size: clamp(36px, 10vw, 72px) !important; }
+      .section-title { font-size: clamp(24px, 6vw, 40px) !important; }
+      .signup-card { padding: 24px 18px !important; }
+      .form-row { grid-template-columns: 1fr !important; }
+    }
+
+
+    /* LOADING STATES */
+    .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
+  </style>
+</head>
+<body>
+<!-- PAGE LOADING SCREEN -->
+<div class="page-loading" id="pageLoader">
+  <div class="pl-logo">LAY<span>◆</span>VER</div>
+  <div class="pl-bar"></div>
+</div>
+
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-messages.html" class="nav-item"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-alerts.html" class="nav-item"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-name" id="sidebarName">…</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- HERO -->
+    <div class="trip-hero fade-up">
+      <div class="hero-grid"></div>
+      <div class="hero-glow"></div>
+      <div class="breadcrumb">
+        <a href="layover-dashboard.html">Home</a>
+        <span>/</span>
+        <a href="#">My Trips</a>
+        <span>/</span>
+        <span id="breadcrumb-city" style="color:var(--muted)">Loading…</span>
+      </div>
+      <div class="hero-body">
+        <div class="hero-left">
+          <div class="trip-badge" id="status-badge">
+            <div class="live-dot"></div>
+            <span id="badge-text">Loading</span>
+          </div>
+          <div class="trip-city" id="hero-city">—</div>
+          <div class="trip-dates-hero" id="hero-dates">—</div>
+          <div class="hero-chips">
+            <div class="chip gold" id="chip-overlap">⚡ 2 friends overlap</div>
+            <div class="chip green" id="chip-days">— days</div>
+            <div class="chip" id="chip-privacy">🔒 Private</div>
+          </div>
+        </div>
+        <div class="hero-right">
+          <div class="countdown-box">
+            <div class="countdown-num" id="countdown-num">—</div>
+            <div class="countdown-lbl" id="countdown-lbl">days away</div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-sm" onclick="toast('Share coming soon!','🔗')">Share</button>
+            <button class="btn-sm" onclick="toast('Edit coming soon!','✏️')">Edit</button>
+            <button class="btn-sm gold" onclick="scrollToChat()">Open Chat ✈</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIP BODY -->
+    <div class="trip-content">
+
+      <!-- LEFT -->
+      <div class="trip-left">
+
+        <!-- ITINERARY -->
+        <div class="section-block fade-up" style="animation-delay:0.1s">
+          <div class="sec-header">
+            <span class="sec-title">Itinerary</span>
+            <button class="sec-action" onclick="addActivity()">+ Add Activity</button>
+          </div>
+          <div class="itinerary" id="itinerary">
+
+            <div class="day-block">
+              <div class="day-label">Day 1 — Arrival</div>
+              <div class="activity-list">
+                <div class="activity">
+                  <span class="act-time">09:00</span>
+                  <span class="act-icon">✈️</span>
+                  <div class="act-body">
+                    <div class="act-name">Flight arrives</div>
+                    <div class="act-detail">Terminal 1 · Gate B22 · United 847</div>
+                    <span class="act-tag transport">Transport</span>
+                  </div>
+                </div>
+                <div class="activity">
+                  <span class="act-time">11:30</span>
+                  <span class="act-icon">🏨</span>
+                  <div class="act-body">
+                    <div class="act-name">Check in · Ace Hotel</div>
+                    <div class="act-detail">20 W 29th St · Confirmation #ACE2847</div>
+                    <span class="act-tag hotel">Hotel</span>
+                  </div>
+                </div>
+                <div class="activity">
+                  <span class="act-time">19:00</span>
+                  <span class="act-icon">🍜</span>
+                  <div class="act-body">
+                    <div class="act-name">Ramen dinner with Alex</div>
+                    <div class="act-detail">Ichiran · Suggested by Alex Chen</div>
+                    <span class="act-tag food">Food</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-block">
+              <div class="day-label">Day 2 — Explore</div>
+              <div class="activity-list">
+                <div class="activity">
+                  <span class="act-time">08:00</span>
+                  <span class="act-icon">☕</span>
+                  <div class="act-body">
+                    <div class="act-name">Coffee · Blue Bottle</div>
+                    <div class="act-detail">8 W 18th St · Meet Thad here</div>
+                    <span class="act-tag food">Food</span>
+                  </div>
+                </div>
+                <div class="activity">
+                  <span class="act-time">10:00</span>
+                  <span class="act-icon">🖼️</span>
+                  <div class="act-body">
+                    <div class="act-name">MoMA</div>
+                    <div class="act-detail">11 W 53rd St · Book tickets in advance</div>
+                    <span class="act-tag explore">Explore</span>
+                  </div>
+                </div>
+                <div class="activity">
+                  <span class="act-time">20:00</span>
+                  <span class="act-icon">🍸</span>
+                  <div class="act-body">
+                    <div class="act-name">Rooftop drinks</div>
+                    <div class="act-detail">230 Fifth Rooftop · With Thad & Julia</div>
+                    <span class="act-tag food">Food</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-block">
+              <div class="day-label">Day 3 — Departure</div>
+              <div class="activity-list">
+                <div class="activity">
+                  <span class="act-time">10:00</span>
+                  <span class="act-icon">🛍️</span>
+                  <div class="act-body">
+                    <div class="act-name">Soho morning walk</div>
+                    <div class="act-detail">Prince St area · Optional</div>
+                    <span class="act-tag explore">Explore</span>
+                  </div>
+                </div>
+                <div class="activity">
+                  <span class="act-time">15:00</span>
+                  <span class="act-icon">✈️</span>
+                  <div class="act-body">
+                    <div class="act-name">Depart EWR</div>
+                    <div class="act-detail">Terminal B · Check-in 2hrs early</div>
+                    <span class="act-tag transport">Transport</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Quick add -->
+          <div class="add-activity-row" id="addActRow" style="display:none">
+            <input class="add-act-input" id="addActInput" placeholder="e.g. 7pm Dinner at Nobu" onkeydown="if(event.key==='Enter')submitActivity()"/>
+            <button class="add-act-btn" onclick="submitActivity()">Add</button>
+            <button class="btn-sm" onclick="cancelActivity()" style="padding:10px 12px">✕</button>
+          </div>
+        </div>
+
+        <!-- FRIEND OVERLAPS -->
+        <div class="section-block fade-up" style="animation-delay:0.2s">
+          <div class="sec-header">
+            <span class="sec-title">Friend Overlaps</span>
+            <button class="sec-action" onclick="toast('Invite friends coming soon!','👥')">Invite</button>
+          </div>
+          <div class="overlap-grid">
+
+            <div class="overlap-card">
+              <div class="ov-av">A</div>
+              <div style="flex:1">
+                <div class="ov-name">Alex Chen</div>
+                <div class="ov-dates">📍 Newark · Mar 14 – Mar 18</div>
+                <div><span class="ov-badge">⚡ Overlaps 4 days</span></div>
+                <div class="ov-actions">
+                  <button class="ov-btn gold" onclick="toast('Messaged Alex!','💬')">Message</button>
+                  <button class="ov-btn" onclick="toast('Plans shared with Alex!','📅')">Share Plans</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="overlap-card">
+              <div class="ov-av">T</div>
+              <div style="flex:1">
+                <div class="ov-name">Thad Williams</div>
+                <div class="ov-dates">📍 Newark · Mar 15 – Mar 17</div>
+                <div><span class="ov-badge">⚡ Overlaps 2 days</span></div>
+                <div class="ov-actions">
+                  <button class="ov-btn gold" onclick="toast('Messaged Thad!','💬')">Message</button>
+                  <button class="ov-btn" onclick="toast('Plans shared with Thad!','📅')">Share Plans</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="overlap-card" style="opacity:0.55">
+              <div class="ov-av">J</div>
+              <div style="flex:1">
+                <div class="ov-name">Julia Santos</div>
+                <div class="ov-dates">📍 Newark · Mar 22 – Mar 25</div>
+                <div><span class="ov-badge" style="border-color:var(--border);color:var(--muted);background:none">Just missed — 4 days apart</span></div>
+                <div class="ov-actions">
+                  <button class="ov-btn" onclick="toast('Messaged Julia!','💬')">Message</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+
+        <!-- PHOTO MEMORIES -->
+        <div class="section-block fade-up" style="animation-delay:0.3s">
+          <div class="sec-header">
+            <span class="sec-title">📸 Memories</span>
+            <button class="sec-action" onclick="triggerUpload()">+ Add Photo</button>
+          </div>
+          <input type="file" id="photoUpload" class="upload-input" accept="image/*" multiple onchange="handlePhotoUpload(event)"/>
+          <div class="photo-grid" id="photoGrid">
+            <!-- demo photos -->
+            <div class="photo-cell has-photo" onclick="openLightbox('https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600','Shibuya crossing at dusk')">
+              <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400" alt="Tokyo"/>
+              <div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>
+              <div class="photo-caption">Shibuya crossing at dusk</div>
+            </div>
+            <div class="photo-cell has-photo" onclick="openLightbox('https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=600','Senso-ji temple morning')">
+              <img src="https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=400" alt="Tokyo"/>
+              <div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>
+              <div class="photo-caption">Senso-ji temple</div>
+            </div>
+            <div class="photo-cell add-photo-btn" onclick="triggerUpload()">
+              <div class="photo-add-icon">+</div>
+              <div class="photo-add-label">Add photo</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECOMMENDATIONS -->
+        <div class="section-block fade-up" style="animation-delay:0.4s">
+          <div class="sec-header">
+            <span class="sec-title">⭐ Recommendations</span>
+            <button class="sec-action" onclick="toggleRecForm()">+ Add Tip</button>
+          </div>
+
+          <!-- Add rec form -->
+          <div class="add-rec-form" id="addRecForm">
+            <input class="rec-input" type="text" id="rec-place" placeholder="Place name (e.g. Ichiran Ramen)"/>
+            <input class="rec-input" type="text" id="rec-desc" placeholder="Your tip or note…"/>
+            <div class="rec-cat-row" id="recCatRow">
+              <button class="rec-cat-opt sel" onclick="selRecCat(this,'Food')">🍜 Food</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Coffee')">☕ Coffee</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Nightlife')">🍸 Nightlife</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Culture')">🏛 Culture</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Views')">🌅 Views</button>
+              <button class="rec-cat-opt" onclick="selRecCat(this,'Shopping')">🛍 Shopping</button>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="m-btn-primary" style="flex:1" onclick="submitRec()">Post Tip →</button>
+              <button class="m-btn-ghost" onclick="toggleRecForm()">Cancel</button>
+            </div>
+          </div>
+
+          <div class="rec-list" id="recList">
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">A</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Alex Chen</div>
+                  <div class="rec-date">Added Mar 11</div>
+                </div>
+                <div class="rec-cat">🍜 Food</div>
+              </div>
+              <div class="rec-place">Ichiran Ramen</div>
+              <div class="rec-desc">Solo booths in Shibuya — perfect for a late night bowl. Go after midnight, no queue. Get the tonkotsu with extra firm noodles.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved to your list!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied to clipboard!','📋')">Share</button>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">T</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Thad Williams</div>
+                  <div class="rec-date">Added Mar 12</div>
+                </div>
+                <div class="rec-cat">☕ Coffee</div>
+              </div>
+              <div class="rec-place">Onibus Coffee, Nakameguro</div>
+              <div class="rec-desc">Best single-origin pour-overs in the city. Grab one and walk along the canal. The Nakameguro branch has outdoor seating.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved to your list!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+              </div>
+            </div>
+            <div class="rec-card">
+              <div class="rec-top">
+                <div class="rec-av">A</div>
+                <div class="rec-meta">
+                  <div class="rec-author">Alex Chen</div>
+                  <div class="rec-date">Added Mar 12</div>
+                </div>
+                <div class="rec-cat">🍸 Nightlife</div>
+              </div>
+              <div class="rec-place">Golden Gai, Shinjuku</div>
+              <div class="rec-desc">Six tiny alleyways, 200 bars. Each holds about 8 people. Find a bar with a theme you like — there's one for every vibe. Go on a weeknight.</div>
+              <div class="rec-actions">
+                <button class="rec-btn gold" onclick="toast('Saved!','⭐')">Save</button>
+                <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <!-- RIGHT: Chat -->
+      <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+          <div class="chat-avatars">
+            <div class="chat-av">A</div>
+            <div class="chat-av">T</div>
+            <div class="chat-av">Y</div>
+          </div>
+          <div class="chat-header-info">
+            <div class="chat-title">Newark Trip Chat</div>
+            <div class="chat-sub">3 members · Active</div>
+          </div>
+          <div class="chat-expire">Expires Mar 22</div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+
+          <div class="msg">
+            <div class="msg-av">A</div>
+            <div class="msg-body">
+              <div class="msg-name">Alex Chen</div>
+              <div class="msg-bubble theirs">Hey! Just landed. So excited we overlap this week 🎉</div>
+              <div class="msg-time">Mar 14 · 9:42 AM</div>
+            </div>
+          </div>
+
+          <div class="msg mine">
+            <div class="msg-av" id="myAv">Y</div>
+            <div class="msg-body">
+              <div class="msg-name" id="myMsgName">You</div>
+              <div class="msg-bubble mine-b">Same!! Thad is here too. Ramen tonight?</div>
+              <div class="msg-time">9:58 AM</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="msg-av">T</div>
+            <div class="msg-body">
+              <div class="msg-name">Thad Williams</div>
+              <div class="msg-bubble theirs">Absolutely in for ramen. Ichiran? I know a great spot near the hotel</div>
+              <div class="msg-time">10:03 AM</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="msg-av">A</div>
+            <div class="msg-body">
+              <div class="msg-name">Alex Chen</div>
+              <div class="msg-bubble theirs">Perfect. 7pm works for me. Anyone want to do MoMA tomorrow morning first?</div>
+              <div class="msg-time">10:11 AM</div>
+            </div>
+          </div>
+
+          <div class="msg mine">
+            <div class="msg-av" id="myAv2">Y</div>
+            <div class="msg-body">
+              <div class="msg-name" id="myMsgName2">You</div>
+              <div class="msg-bubble mine-b">Already on the itinerary 😄 tickets booked for 10am</div>
+              <div class="msg-time">10:14 AM</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="msg-av">T</div>
+            <div class="msg-body">
+              <div class="msg-name">Thad Williams</div>
+              <div class="msg-bubble theirs">You're too organized lol. I'm in 🎨</div>
+              <div class="msg-time">10:16 AM</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Typing indicator (hidden by default) -->
+        <div class="typing-indicator" id="typingIndicator" style="padding:4px 18px 8px;display:none">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+          <div class="typing-name">Alex is typing…</div>
+        </div>
+
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Message the group…" onkeydown="if(event.key==='Enter')sendMessage()"/>
+          <button class="chat-send" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+
+    </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lbImg" src="" alt="memory"/>
+    <div class="lightbox-caption" id="lbCaption"></div>
+  </div>
+  </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toastEl"></div>
+
+<script>
+
+  // ── Photo memories ────────────────────────────────────────
+  function triggerUpload() {
+    document.getElementById('photoUpload').click();
+  }
+
+  function handlePhotoUpload(e) {
+    const files = Array.from(e.target.files);
+    const grid  = document.getElementById('photoGrid');
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const addCell = grid.querySelector('.add-photo-btn');
+        if (addCell) addCell.remove();
+        const cell = document.createElement('div');
+        cell.className = 'photo-cell has-photo';
+        const src = ev.target.result;
+        cell.innerHTML = `<img src="${src}" alt="memory"/><div class="photo-cell-overlay"><button class="photo-overlay-btn">View</button></div>`;
+        cell.onclick = () => openLightbox(src, file.name.replace(/\.[^.]+$/, ''));
+        grid.appendChild(cell);
+        const add = document.createElement('div');
+        add.className = 'photo-cell add-photo-btn';
+        add.innerHTML = '<div class="photo-add-icon">+</div><div class="photo-add-label">Add photo</div>';
+        add.onclick = triggerUpload;
+        grid.appendChild(add);
+        toast('Photo added!', '📸');
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  }
+
+  function openLightbox(src, caption) {
+    document.getElementById('lbImg').src = src;
+    document.getElementById('lbCaption').textContent = caption || '';
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+  // ── Recommendations ───────────────────────────────────────
+  let recCat = 'Food';
+
+  function toggleRecForm() {
+    const form = document.getElementById('addRecForm');
+    form.classList.toggle('open');
+    if (form.classList.contains('open')) document.getElementById('rec-place').focus();
+  }
+
+  function selRecCat(btn, cat) {
+    recCat = cat;
+    document.querySelectorAll('.rec-cat-opt').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  function submitRec() {
+    const place = document.getElementById('rec-place').value.trim();
+    const desc  = document.getElementById('rec-desc').value.trim();
+    if (!place) { toast('Enter a place name first', '⚠️'); return; }
+    const emojis = { Food:'🍜', Coffee:'☕', Nightlife:'🍸', Culture:'🏛', Views:'🌅', Shopping:'🛍' };
+    const emoji  = emojis[recCat] || '📍';
+    const myName    = window._myName    || 'You';
+    const myInitial = window._myInitial || '?';
+    const card = document.createElement('div');
+    card.className = 'rec-card';
+    card.style.animation = 'fadeUp 0.3s ease';
+    card.innerHTML = `
+      <div class="rec-top">
+        <div class="rec-av">${myInitial}</div>
+        <div class="rec-meta">
+          <div class="rec-author">${myName}</div>
+          <div class="rec-date">Just now</div>
+        </div>
+        <div class="rec-cat">${emoji} ${recCat}</div>
+      </div>
+      <div class="rec-place">${place}</div>
+      <div class="rec-desc">${desc || 'No description added.'}</div>
+      <div class="rec-actions">
+        <button class="rec-btn gold" onclick="toast('Saved!','⭐')">Save</button>
+        <button class="rec-btn" onclick="toast('Copied!','📋')">Share</button>
+      </div>`;
+    document.getElementById('recList').prepend(card);
+    document.getElementById('rec-place').value = '';
+    document.getElementById('rec-desc').value  = '';
+    document.getElementById('addRecForm').classList.remove('open');
+    toast('Tip posted!', '⭐');
+  }
+
+  // ── Supabase ──────────────────────────────────────────────
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  // ── Demo trip data (replace with real Supabase fetch later) ──
+  const DEMO_TRIP = {
+    city: 'Newark',
+    depart_date: '2025-03-14',
+    return_date: '2025-03-22',
+    visibility: 'friends',
+    notes: 'Work conference + catch-ups'
+  };
+
+  let myName = 'You';
+  let myInitial = 'Y';
+
+  // ── Init ──────────────────────────────────────────────────
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      const meta = session.user.user_metadata || {};
+      myName = meta.first_name || session.user.email.split('@')[0];
+      myInitial = myName[0].toUpperCase();
+      document.getElementById('sidebarName').textContent = myName;
+      document.getElementById('sidebarAvatar').textContent = myInitial;
+      document.getElementById('myAv').textContent = myInitial;
+      document.getElementById('myAv2').textContent = myInitial;
+      document.getElementById('myMsgName').textContent = 'You';
+      document.getElementById('myMsgName2').textContent = 'You';
+      window._myName    = myName;
+      window._myInitial = myInitial;
+    }
+
+    // Try to load real trip from URL param, fall back to demo
+    const params = new URLSearchParams(window.location.search);
+    const tripId = params.get('id');
+    let trip = DEMO_TRIP;
+
+    if (tripId && session) {
+      try {
+        const { data } = await db.from('trips').select('*').eq('id', tripId).single();
+        if (data) trip = data;
+      } catch {}
+    }
+
+    renderHero(trip);
+  }
+
+  function renderHero(trip) {
+    const city = trip.city || 'Unknown City';
+    const depart = new Date(trip.depart_date + 'T00:00:00');
+    const ret    = new Date(trip.return_date + 'T00:00:00');
+    const today  = new Date();
+    const diff   = Math.ceil((depart - today) / 86400000);
+    const tripDays = Math.ceil((ret - depart) / 86400000) + 1;
+    const isActive = today >= depart && today <= ret;
+    const isPast   = today > ret;
+
+    document.getElementById('hero-city').innerHTML = city.split('').length > 8
+      ? `<em>${city}</em>` : city;
+    document.getElementById('breadcrumb-city').textContent = city;
+    document.getElementById('hero-dates').textContent =
+      `${fmtDate(trip.depart_date)} — ${fmtDate(trip.return_date)}`;
+    document.getElementById('chip-days').textContent = `${tripDays} days`;
+    document.getElementById('chip-privacy').textContent =
+      trip.visibility === 'public' ? '🌍 Public'
+      : trip.visibility === 'friends' ? '👥 Friends'
+      : '🔒 Private';
+
+    if (isPast) {
+      document.getElementById('badge-text').textContent = 'Completed';
+      document.getElementById('trip-badge').querySelector('.live-dot').style.background = 'var(--dim)';
+      document.getElementById('countdown-num').textContent = '✓';
+      document.getElementById('countdown-lbl').textContent = 'completed';
+    } else if (isActive) {
+      document.getElementById('badge-text').textContent = 'Live Now';
+      document.getElementById('countdown-num').textContent = Math.ceil((ret - today) / 86400000);
+      document.getElementById('countdown-lbl').textContent = 'days left';
+    } else {
+      document.getElementById('badge-text').textContent = 'Upcoming';
+      document.getElementById('trip-badge').querySelector('.live-dot').style.background = 'var(--blue)';
+      document.getElementById('trip-badge').querySelector('.live-dot').style.animation = 'none';
+      document.getElementById('countdown-num').textContent = diff;
+      document.getElementById('countdown-lbl').textContent = 'days away';
+    }
+  }
+
+  // ── Chat ──────────────────────────────────────────────────
+  function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text  = input.value.trim();
+    if (!text) return;
+
+    const msgs = document.getElementById('chatMessages');
+    const el = document.createElement('div');
+    el.className = 'msg mine';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    el.style.transition = 'all 0.25s ease';
+    el.innerHTML = `
+      <div class="msg-av">${myInitial}</div>
+      <div class="msg-body">
+        <div class="msg-name">You</div>
+        <div class="msg-bubble mine-b">${escHtml(text)}</div>
+        <div class="msg-time">Just now</div>
+      </div>`;
+    msgs.appendChild(el);
+    input.value = '';
+    msgs.scrollTop = msgs.scrollHeight;
+
+    // Animate in
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    });
+
+    // Simulate a reply after 1.5s
+    setTimeout(() => simulateReply(text), 1600);
+  }
+
+  const replies = [
+    "That sounds great! 🙌",
+    "I'm in! What time?",
+    "Already noted it in my calendar.",
+    "Love it. See you there ✈",
+    "Perfect — Thad do you want to join?",
+    "Yes!! This trip is going to be so good.",
+    "Let's do it. I'll grab us a table.",
+  ];
+  let replyIdx = 0;
+
+  function simulateReply(userMsg) {
+    // Show typing
+    const ti = document.getElementById('typingIndicator');
+    ti.style.display = 'flex';
+    const msgs = document.getElementById('chatMessages');
+    msgs.scrollTop = msgs.scrollHeight;
+
+    setTimeout(() => {
+      ti.style.display = 'none';
+      const names = ['Alex Chen', 'Thad Williams'];
+      const avs   = ['A', 'T'];
+      const idx   = replyIdx % 2;
+      replyIdx++;
+
+      const el = document.createElement('div');
+      el.className = 'msg';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(8px)';
+      el.style.transition = 'all 0.25s ease';
+      el.innerHTML = `
+        <div class="msg-av">${avs[idx]}</div>
+        <div class="msg-body">
+          <div class="msg-name">${names[idx]}</div>
+          <div class="msg-bubble theirs">${replies[replyIdx % replies.length]}</div>
+          <div class="msg-time">Just now</div>
+        </div>`;
+      msgs.appendChild(el);
+      msgs.scrollTop = msgs.scrollHeight;
+      requestAnimationFrame(() => { el.style.opacity='1'; el.style.transform='none'; });
+    }, 1400);
+  }
+
+  function scrollToChat() {
+    document.getElementById('chatPanel').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('chatInput').focus();
+  }
+
+  // ── Itinerary ─────────────────────────────────────────────
+  function addActivity() {
+    document.getElementById('addActRow').style.display = 'flex';
+    document.getElementById('addActInput').focus();
+  }
+  function cancelActivity() {
+    document.getElementById('addActRow').style.display = 'none';
+    document.getElementById('addActInput').value = '';
+  }
+  function submitActivity() {
+    const val = document.getElementById('addActInput').value.trim();
+    if (!val) return;
+
+    const lastDay = document.querySelector('.day-block:last-child .activity-list');
+    if (!lastDay) return;
+
+    const el = document.createElement('div');
+    el.className = 'activity';
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    el.innerHTML = `
+      <span class="act-time">—</span>
+      <span class="act-icon">📌</span>
+      <div class="act-body">
+        <div class="act-name">${escHtml(val)}</div>
+        <div class="act-detail">Added by you</div>
+        <span class="act-tag explore">Custom</span>
+      </div>`;
+    lastDay.appendChild(el);
+    requestAnimationFrame(() => el.style.opacity = '1');
+
+    cancelActivity();
+    toast(`Activity added: ${val}`, '📌');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, icon='✓') {
+    const t = document.getElementById('toastEl');
+    t.textContent = (icon ? icon + '  ' : '') + msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function fmtDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.querySelectorAll('a,button,input,.activity,.overlap-card,.friend-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)'; });
+    el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+  init();
+
+  // Page load transition
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('done');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 400);
+  });
+</script>
+</body>
+</html>
