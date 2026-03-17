@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layover — Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.15);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --red: #e07a7a; --blue: #7aaee0;
+      --sidebar: 220px;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    /* CURSOR */
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+
+    /* AUTH GATE */
+    .auth-gate { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; gap: 16px; }
+    .auth-gate.hidden { display: none; }
+    .auth-gate p { font-size: 12px; color: var(--muted); letter-spacing: 0.1em; }
+    .auth-gate a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(201,168,76,0.3); padding-bottom: 1px; }
+    .gate-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; letter-spacing: 0.25em; margin-bottom: 8px; }
+    .gate-logo span { color: var(--gold); }
+
+    /* LAYOUT */
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; grid-template-rows: 1fr; height: 100vh; }
+
+    /* SIDEBAR */
+    aside {
+      background: var(--deep);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 2px;
+      font-size: 11px; letter-spacing: 0.1em; color: var(--muted);
+      text-decoration: none; cursor: none;
+      transition: all 0.2s; position: relative;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px;
+      border-top: 1px solid var(--border2);
+    }
+    .user-chip {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border2);
+      cursor: none;
+      transition: background 0.2s;
+    }
+    .user-chip:hover { background: rgba(255,255,255,0.06); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; margin-top: 1px; }
+    .signout-btn { background: none; border: none; font-size: 11px; color: var(--dim); cursor: none; transition: color 0.2s; padding: 0; }
+    .signout-btn:hover { color: var(--red); }
+
+    /* MAIN */
+    main { overflow-y: auto; display: flex; flex-direction: column; background: var(--night); }
+
+    /* TOP BAR */
+    .topbar {
+      padding: 20px 36px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(10,10,15,0.9);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 10;
+      flex-shrink: 0;
+    }
+    .topbar-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; }
+    .topbar-left h1 em { font-style: italic; color: var(--gold); }
+    .topbar-left .date { font-size: 10px; color: var(--dim); letter-spacing: 0.15em; margin-top: 2px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .icon-btn { width: 36px; height: 36px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: none; transition: all 0.2s; position: relative; }
+    .icon-btn:hover { border-color: rgba(201,168,76,0.3); background: var(--card2); }
+    .notif-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; border: 1.5px solid var(--night); }
+    .add-trip-btn { display: flex; align-items: center; gap: 8px; background: var(--gold); color: var(--night); border: none; padding: 10px 20px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; cursor: none; transition: all 0.2s; }
+    .add-trip-btn:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(201,168,76,0.2); }
+
+    /* CONTENT GRID */
+    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 320px; gap: 24px; flex: 1; }
+
+    /* CARDS */
+    .card { background: var(--card); border: 1px solid var(--border); }
+    .card-header { padding: 18px 22px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .card-title::before { content: ''; width: 20px; height: 1px; background: var(--gold); display: block; }
+    .card-action { font-size: 10px; letter-spacing: 0.12em; color: var(--gold); text-decoration: none; cursor: none; transition: color 0.2s; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .card-action:hover { color: var(--gold-light); }
+    .card-body { padding: 20px 22px; }
+
+    /* STATS ROW */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 24px; }
+    .stat-box { background: var(--card); padding: 20px 22px; transition: background 0.2s; }
+    .stat-box:hover { background: var(--card2); }
+    .stat-val { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: var(--cream); line-height: 1; }
+    .stat-val span { color: var(--gold); }
+    .stat-lbl { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+    .stat-delta { font-size: 9px; margin-top: 4px; }
+    .stat-delta.up { color: var(--green); }
+    .stat-delta.neutral { color: var(--dim); }
+
+    /* TRIP CARDS */
+    .trip-list { display: flex; flex-direction: column; gap: 12px; }
+    .trip-card {
+      background: var(--deep);
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 12px; align-items: start;
+      cursor: none; transition: all 0.22s;
+      position: relative; overflow: hidden;
+    }
+    .trip-card::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); transform: scaleY(0); transition: transform 0.2s; }
+    .trip-card:hover { background: var(--card); border-color: rgba(201,168,76,0.2); }
+    .trip-card:hover::after { transform: scaleY(1); }
+    .trip-route { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; margin-bottom: 4px; }
+    .trip-dates { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 10px; }
+    .trip-meta { display: flex; align-items: center; gap: 14px; }
+    .trip-avatars { display: flex; }
+    .trip-av { width: 22px; height: 22px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid var(--deep); margin-right: -7px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--gold); }
+    .trip-overlap { font-size: 10px; color: var(--gold); background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); padding: 3px 10px; white-space: nowrap; }
+    .trip-status { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; }
+    .trip-status.upcoming { color: var(--blue); }
+    .trip-status.active { color: var(--green); }
+    .trip-status.past { color: var(--dim); }
+    .trip-countdown { font-size: 10px; color: var(--muted); text-align: right; }
+    .trip-countdown strong { display: block; font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; color: var(--cream); line-height: 1; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 48px 20px; }
+    .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.4; }
+    .empty-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; margin-bottom: 8px; color: var(--muted); }
+    .empty-sub { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; line-height: 1.7; }
+
+    /* RIGHT COLUMN */
+    .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+    /* ACTIVITY FEED */
+    .feed-list { display: flex; flex-direction: column; }
+    .feed-item { padding: 14px 0; border-bottom: 1px solid var(--border2); display: flex; gap: 12px; align-items: flex-start; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .feed-text { font-size: 11px; line-height: 1.6; color: var(--muted); flex: 1; }
+    .feed-text strong { color: var(--cream); font-weight: 400; }
+    .feed-time { font-size: 9px; color: var(--dim); margin-top: 3px; letter-spacing: 0.06em; }
+    .feed-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+    .feed-dot.gold { background: var(--gold); }
+    .feed-dot.green { background: var(--green); }
+    .feed-dot.blue { background: var(--blue); }
+
+    /* FRIENDS NEARBY */
+    .friend-list { display: flex; flex-direction: column; gap: 0; }
+    .friend-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border2); cursor: none; transition: all 0.2s; }
+    .friend-item:last-child { border-bottom: none; }
+    .friend-item:hover .friend-name { color: var(--gold); }
+    .friend-av { width: 32px; height: 32px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); flex-shrink: 0; position: relative; }
+    .friend-online { position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; background: var(--green); border-radius: 50%; border: 1.5px solid var(--card); }
+    .friend-info { flex: 1; min-width: 0; }
+    .friend-name { font-size: 12px; color: var(--cream); transition: color 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .friend-loc { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 0.05em; }
+    .friend-overlap { font-size: 9px; color: var(--gold); letter-spacing: 0.08em; }
+
+    /* QUICK ADD TRIP MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,15,0.88); backdrop-filter: blur(6px); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--deep); border: 1px solid var(--border); width: 560px; max-width: 96vw; max-height: 94vh; overflow-y: auto; animation: modalIn 0.25s ease; }
+    .modal::-webkit-scrollbar { width: 3px; }
+    .modal::-webkit-scrollbar-thumb { background: var(--border); }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+    .modal-header { padding: 22px 26px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+    .modal-title em { font-style: italic; color: var(--gold); }
+    .modal-close { background: none; border: none; font-size: 18px; color: var(--dim); cursor: none; transition: color 0.2s; padding: 0; }
+    .modal-close:hover { color: var(--cream); }
+    .modal-body { padding: 26px; display: flex; flex-direction: column; gap: 16px; }
+    .m-field label { display: block; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .m-field input { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); letter-spacing: 0.04em; transition: border-color 0.2s; }
+    .m-field input:focus { border-color: rgba(201,168,76,0.4); }
+    .m-field input::placeholder { color: var(--dim); }
+    .m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-footer { padding: 0 26px 26px; display: flex; gap: 12px; }
+    .m-btn-primary { flex: 1; background: var(--gold); border: none; padding: 13px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: none; transition: all 0.2s; }
+    .m-btn-primary:hover { background: var(--gold-light); }
+    .m-btn-primary:disabled { opacity: 0.6; }
+    .m-btn-ghost { background: transparent; border: 1px solid var(--border); padding: 13px 20px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .m-btn-ghost:hover { border-color: rgba(255,255,255,0.15); color: var(--cream); }
+
+    /* CITY AUTOCOMPLETE */
+    .city-wrap { position: relative; }
+    .city-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid rgba(201,168,76,0.3); border-top: none; z-index: 50; max-height: 220px; overflow-y: auto; display: none; }
+    .city-dropdown.open { display: block; }
+    .city-opt { display: flex; align-items: center; gap: 12px; padding: 11px 14px; font-size: 12px; color: var(--muted); cursor: none; transition: all 0.15s; border-bottom: 1px solid var(--border2); }
+    .city-opt:last-child { border-bottom: none; }
+    .city-opt:hover, .city-opt.focused { background: var(--gold-dim); color: var(--cream); }
+    .city-opt-flag { font-size: 16px; flex-shrink: 0; }
+    .city-opt-name { flex: 1; }
+    .city-opt-country { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+
+    /* VIBE PICKER */
+    .vibe-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+    .vibe-btn { padding: 9px 4px; border: 1px solid var(--border); background: none; cursor: none; font-size: 18px; text-align: center; transition: all 0.18s; font-family: "DM Mono", monospace; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .vibe-btn span { font-size: 8px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+    .vibe-btn.sel { border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+    .vibe-btn.sel span { color: var(--gold); }
+
+    /* COVER EMOJI PICKER */
+    .emoji-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .emoji-opt { width: 36px; height: 36px; border: 1px solid var(--border); background: none; cursor: none; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .emoji-opt.sel { border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+
+    /* TRAVEL STYLE TAGS */
+    .tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag-opt { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: "DM Mono", monospace; transition: all 0.18s; }
+    .tag-opt.sel { border-color: rgba(201,168,76,0.35); color: var(--gold); background: var(--gold-dim); }
+
+    /* PRIVACY TOGGLE */
+    .privacy-row { display: flex; gap: 0; }
+    .privacy-opt { flex: 1; padding: 10px 0; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; border: 1px solid var(--border); color: var(--muted); cursor: none; background: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-right: -1px; }
+    .privacy-opt.sel { background: var(--gold-dim); border-color: rgba(201,168,76,0.35); color: var(--gold); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--card); border: 1px solid var(--border); padding: 14px 20px; font-size: 11px; letter-spacing: 0.06em; color: var(--cream); z-index: 1000; transform: translateY(20px); opacity: 0; transition: all 0.3s; max-width: 300px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.gold { border-color: rgba(201,168,76,0.4); }
+    .toast-icon { margin-right: 8px; }
+
+    /* Animations */
+    .fade-in { opacity: 0; transform: translateY(14px); animation: fadeUp 0.5s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* Scrollbar */
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-track { background: transparent; }
+    main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="authGate">
+  <div class="gate-logo">LAY<span>◆</span>VER</div>
+  <p>Checking your session…</p>
+  <p style="margin-top:8px"><a href="layover-login.html">← Sign in</a></p>
+</div>
+
+<!-- SHELL -->
+<div class="shell" id="appShell" style="display:none">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item active"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-messages.html" class="nav-item"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="#" class="nav-item" onclick="toast&&toast('Alerts coming soon!')||showToast&&showToast('Alerts coming soon!')"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast&&toast('Settings coming soon!')||showToast&&showToast('Settings coming soon!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">Loading…</div>
+          <div class="user-status">● Online</div>
+        </div>
+        <button class="signout-btn" onclick="handleSignOut()" title="Sign out">⏏</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Good <em id="greeting">evening</em>, <span id="topbarName">traveler</span>.</h1>
+        <div class="date" id="topDate"></div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="showToast('No new notifications','🔔')" title="Notifications">
+          🔔<span class="notif-dot"></span>
+        </button>
+        <button class="icon-btn" onclick="showToast('Messages coming soon!','💬')" title="Messages">💬</button>
+        <button class="add-trip-btn" onclick="openModal()">+ Add Trip</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- LEFT COLUMN -->
+      <div class="left-col">
+
+        <!-- Stats -->
+        <div class="stats-row fade-in" style="animation-delay:0.1s">
+          <div class="stat-box">
+            <div class="stat-val" id="stat-trips">0</div>
+            <div class="stat-lbl">My Trips</div>
+            <div class="stat-delta neutral">All time</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">4</div>
+            <div class="stat-lbl">Friends Online</div>
+            <div class="stat-delta up">↑ 2 today</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">2</div>
+            <div class="stat-lbl">Overlaps Soon</div>
+            <div class="stat-delta up">Next 30 days</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val">7</div>
+            <div class="stat-lbl">Cities Visited</div>
+            <div class="stat-delta neutral">This year</div>
+          </div>
+        </div>
+
+        <!-- Trips -->
+        <div class="card fade-in" style="animation-delay:0.2s">
+          <div class="card-header">
+            <span class="card-title">Upcoming Trips</span>
+            <button class="card-action" onclick="openModal()">+ New Trip</button>
+          </div>
+          <div class="card-body">
+            <div id="trip-list-wrap">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="right-col">
+
+        <!-- Friends nearby -->
+        <div class="card fade-in" style="animation-delay:0.15s">
+          <div class="card-header">
+            <span class="card-title">Friends Traveling</span>
+            <button class="card-action" onclick="showToast('Find friends coming soon!','👥')">Add Friends</button>
+          </div>
+          <div class="card-body" style="padding-top:8px;padding-bottom:8px">
+            <div class="friend-list">
+              <div class="friend-item">
+                <div class="friend-av">A<div class="friend-online"></div></div>
+                <div class="friend-info"><div class="friend-name">Alex Chen</div><div class="friend-loc">📍 Tokyo, Japan</div><div class="friend-overlap">Overlaps your Mar 14 trip</div></div>
+              </div>
+              <div class="friend-item">
+                <div class="friend-av">T</div>
+                <div class="friend-info"><div class="friend-name">Thad Williams</div><div class="friend-loc">📍 Newark, NJ</div><div class="friend-overlap">Same city Mar 16–18</div></div>
+              </div>
+              <div class="friend-item">
+                <div class="friend-av">J<div class="friend-online"></div></div>
+                <div class="friend-info"><div class="friend-name">Julia Santos</div><div class="friend-loc">📍 London, UK</div><div class="friend-overlap">Visiting Apr 2</div></div>
+              </div>
+              <div class="friend-item">
+                <div class="friend-av">M</div>
+                <div class="friend-info"><div class="friend-name">Marcus Lee</div><div class="friend-loc">📍 Home · Austin</div><div class="friend-overlap" style="color:var(--dim)">No active trips</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity feed -->
+        <div class="card fade-in" style="animation-delay:0.25s">
+          <div class="card-header">
+            <span class="card-title">Activity</span>
+            <button class="card-action" onclick="showToast('Full feed coming soon!','📡')">See All</button>
+          </div>
+          <div class="card-body" style="padding-top:6px;padding-bottom:6px">
+            <div class="feed-list" id="feed-list">
+              <div class="feed-item"><div class="feed-dot gold"></div><div><div class="feed-text"><strong>Alex Chen</strong> added a trip to Tokyo</div><div class="feed-time">2 min ago</div></div></div>
+              <div class="feed-item"><div class="feed-dot green"></div><div><div class="feed-text"><strong>You</strong> overlap with Thad in Newark for 3 days</div><div class="feed-time">14 min ago</div></div></div>
+              <div class="feed-item"><div class="feed-dot blue"></div><div><div class="feed-text"><strong>Julia Santos</strong> shared a tip for London</div><div class="feed-time">1 hr ago</div></div></div>
+              <div class="feed-item"><div class="feed-dot gold"></div><div><div class="feed-text"><strong>Marcus Lee</strong> accepted your friend request</div><div class="feed-time">3 hr ago</div></div></div>
+              <div class="feed-item"><div class="feed-dot green"></div><div><div class="feed-text"><strong>Thad Williams</strong> just landed in Newark</div><div class="feed-time">Yesterday</div></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD TRIP MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Plan a <em>trip.</em></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- City search -->
+      <div class="m-field">
+        <label>Where are you going?</label>
+        <div class="city-wrap">
+          <input type="text" id="t-city" placeholder="Search any city in the world…" autocomplete="off"
+            oninput="citySearch(this.value)" onkeydown="cityKey(event)" onfocus="if(this.value)citySearch(this.value)"/>
+          <div class="city-dropdown" id="cityDropdown"></div>
+        </div>
+      </div>
+
+      <!-- Dates -->
+      <div class="m-row">
+        <div class="m-field"><label>Depart Date</label><input type="date" id="t-from"/></div>
+        <div class="m-field"><label>Return Date</label><input type="date" id="t-to"/></div>
+      </div>
+
+      <!-- Trip vibe (Instagram-style) -->
+      <div class="m-field">
+        <label>Trip Vibe</label>
+        <div class="vibe-grid">
+          <button class="vibe-btn sel" onclick="selVibe(this,'adventure')">🏔<span>Adventure</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'food')">🍜<span>Food Trip</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'culture')">🏛<span>Culture</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'business')">💼<span>Business</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'beach')">🏖<span>Beach</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'nightlife')">🍸<span>Nightlife</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'wellness')">🧘<span>Wellness</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'family')">👨‍👩‍👧<span>Family</span></button>
+        </div>
+      </div>
+
+      <!-- Caption / notes (Instagram style) -->
+      <div class="m-field">
+        <label>Caption <span style="color:var(--dim);font-size:9px;letter-spacing:0">(what's the trip about?)</span></label>
+        <textarea id="t-notes" placeholder="e.g. First time in Tokyo — ramen tour, Golden Gai, teamLab…" rows="3"
+          style="width:100%;background:var(--card);border:1px solid var(--border);outline:none;padding:12px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--cream);resize:none;transition:border-color 0.2s;letter-spacing:0.03em;line-height:1.6"></textarea>
+      </div>
+
+      <!-- Cover emoji -->
+      <div class="m-field">
+        <label>Trip Icon</label>
+        <div class="emoji-row">
+          <button class="emoji-opt sel" onclick="selEmoji(this,'✈️')">✈️</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏖')">🏖</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏔')">🏔</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🍜')">🍜</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎌')">🎌</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏛')">🏛</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎶')">🎶</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'💼')">💼</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🌿')">🌿</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎿')">🎿</button>
+        </div>
+      </div>
+
+      <!-- Visibility -->
+      <div class="m-field">
+        <label>Who can see this?</label>
+        <div class="privacy-row">
+          <button class="privacy-opt" onclick="selPrivacy(this,'public')">🌍 Public</button>
+          <button class="privacy-opt sel" onclick="selPrivacy(this,'friends')">👥 Friends</button>
+          <button class="privacy-opt" onclick="selPrivacy(this,'private')">🔒 Private</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="m-btn-primary" id="save-trip-btn" onclick="saveTrip()">Post Trip ✈</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Supabase ──────────────────────────────────────────────
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  let currentUser = null;
+  let userTrips = [];
+  let selectedPrivacy = 'friends';
+
+  // ── Auth check ────────────────────────────────────────────
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) {
+      document.getElementById('authGate').querySelector('p').textContent = 'You need to sign in first.';
+      return;
+    }
+    currentUser = session.user;
+    showApp();
+  }
+
+  function showApp() {
+    document.getElementById('authGate').classList.add('hidden');
+    document.getElementById('appShell').style.display = 'grid';
+
+    const meta = currentUser.user_metadata || {};
+    const name = meta.first_name || currentUser.email.split('@')[0];
+    const initial = name[0].toUpperCase();
+
+    document.getElementById('sidebarName').textContent = name;
+    document.getElementById('sidebarAvatar').textContent = initial;
+    document.getElementById('topbarName').textContent = name;
+
+    // Greeting
+    const h = new Date().getHours();
+    document.getElementById('greeting').textContent = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+
+    // Date
+    document.getElementById('topDate').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+    loadTrips();
+  }
+
+  // ── Sign out ──────────────────────────────────────────────
+  async function handleSignOut() {
+    await db.auth.signOut();
+    window.location.href = 'layover-login.html';
+  }
+
+  // ── Load trips ────────────────────────────────────────────
+  async function loadTrips() {
+    // Try to load from 'trips' table; gracefully fall back to demo data
+    try {
+      const { data, error } = await db
+        .from('trips')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('depart_date', { ascending: true });
+
+      if (error) throw error;
+      userTrips = data || [];
+    } catch {
+      // Table may not exist yet — show demo data
+      userTrips = [];
+    }
+
+    renderTrips();
+  }
+
+  function renderTrips() {
+    const wrap = document.getElementById('trip-list-wrap');
+    document.getElementById('stat-trips').textContent = userTrips.length;
+
+    if (userTrips.length === 0) {
+      wrap.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">✈️</div>
+          <div class="empty-title">No trips yet.</div>
+          <div class="empty-sub">Add your first trip and start seeing<br>where your people are heading.</div>
+        </div>`;
+      return;
+    }
+
+    const today = new Date();
+    wrap.innerHTML = '<div class="trip-list">' + userTrips.map(t => {
+      const depart = new Date(t.depart_date);
+      const ret    = new Date(t.return_date);
+      const diff   = Math.ceil((depart - today) / 86400000);
+      const isActive = today >= depart && today <= ret;
+      const isPast   = today > ret;
+
+      const status = isPast ? 'past' : isActive ? 'active' : 'upcoming';
+      const statusLabel = isPast ? 'Completed' : isActive ? '● Live now' : 'Upcoming';
+      const countdownHTML = isPast ? '' : isActive
+        ? `<div class="trip-countdown"><strong>Live</strong>now</div>`
+        : `<div class="trip-countdown"><strong>${diff}</strong>days away</div>`;
+
+      return `
+        <div class="trip-card">
+          <div>
+            <div class="trip-route">${escHtml(t.city)}</div>
+            <div class="trip-dates">${fmtDate(t.depart_date)} – ${fmtDate(t.return_date)}</div>
+            <div class="trip-meta">
+              <span class="trip-status ${status}">${statusLabel}</span>
+              ${t.notes ? `<span style="font-size:10px;color:var(--dim)">${escHtml(t.notes)}</span>` : ''}
+            </div>
+          </div>
+          ${countdownHTML}
+        </div>`;
+    }).join('') + '</div>';
+  }
+
+  // ── Save trip ─────────────────────────────────────────────
+  async function saveTrip() {
+    const city  = document.getElementById('t-city').value.trim();
+    const from  = document.getElementById('t-from').value;
+    const to    = document.getElementById('t-to').value;
+    const notes = document.getElementById('t-notes').value.trim();
+
+    if (!city || !from || !to) { showToast('Please fill in city and dates.','⚠️'); return; }
+    if (from > to) { showToast('Return date must be after departure.','⚠️'); return; }
+
+    const btn = document.getElementById('save-trip-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+      const cityObj = selectedCityObj || {};
+      const { data, error } = await db.from('trips').insert([{
+        user_id:     currentUser.id,
+        city,
+        country:     cityObj.country || null,
+        flag:        cityObj.flag    || '✈️',
+        depart_date: from,
+        return_date: to,
+        notes,
+        vibe:        selectedVibe,
+        cover_emoji: selectedEmoji,
+        visibility:  selectedPrivacy
+      }]).select();
+
+      if (error) throw error;
+
+      userTrips.push(data[0]);
+      userTrips.sort((a,b) => new Date(a.depart_date) - new Date(b.depart_date));
+      renderTrips();
+      closeModal();
+      showToast(`Trip to ${city} saved! ✈`, '✈');
+
+      // Add to feed
+      prependFeed(`<strong>You</strong> added a trip to ${city}`, 'gold');
+
+    } catch (err) {
+      // Table doesn't exist yet — show helpful message
+      showToast('Create a "trips" table in Supabase to save trips!', '⚠️');
+      console.error(err);
+    }
+
+    btn.disabled = false; btn.textContent = 'Save Trip ✈';
+  }
+
+  function prependFeed(html, dotColor) {
+    const feed = document.getElementById('feed-list');
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.innerHTML = `<div class="feed-dot ${dotColor}"></div><div><div class="feed-text">${html}</div><div class="feed-time">Just now</div></div>`;
+    feed.prepend(item);
+  }
+
+  // ── Modal ─────────────────────────────────────────────────
+
+  // ── World city database ─────────────────────────────────
+  const SEED_CITIES = [
+    {n:"New York",c:"United States",f:"🇺🇸"},{n:"Los Angeles",c:"United States",f:"🇺🇸"},{n:"Chicago",c:"United States",f:"🇺🇸"},{n:"Houston",c:"United States",f:"🇺🇸"},{n:"Phoenix",c:"United States",f:"🇺🇸"},{n:"Philadelphia",c:"United States",f:"🇺🇸"},{n:"San Antonio",c:"United States",f:"🇺🇸"},{n:"San Diego",c:"United States",f:"🇺🇸"},{n:"Dallas",c:"United States",f:"🇺🇸"},{n:"San Jose",c:"United States",f:"🇺🇸"},{n:"Austin",c:"United States",f:"🇺🇸"},{n:"San Francisco",c:"United States",f:"🇺🇸"},{n:"Seattle",c:"United States",f:"🇺🇸"},{n:"Denver",c:"United States",f:"🇺🇸"},{n:"Washington DC",c:"United States",f:"🇺🇸"},{n:"Nashville",c:"United States",f:"🇺🇸"},{n:"Boston",c:"United States",f:"🇺🇸"},{n:"Portland",c:"United States",f:"🇺🇸"},{n:"Las Vegas",c:"United States",f:"🇺🇸"},{n:"Miami",c:"United States",f:"🇺🇸"},{n:"Minneapolis",c:"United States",f:"🇺🇸"},{n:"Atlanta",c:"United States",f:"🇺🇸"},{n:"New Orleans",c:"United States",f:"🇺🇸"},{n:"Charlotte",c:"United States",f:"🇺🇸"},{n:"Raleigh",c:"United States",f:"🇺🇸"},{n:"Tampa",c:"United States",f:"🇺🇸"},{n:"Salt Lake City",c:"United States",f:"🇺🇸"},{n:"Detroit",c:"United States",f:"🇺🇸"},{n:"Pittsburgh",c:"United States",f:"🇺🇸"},{n:"Orlando",c:"United States",f:"🇺🇸"},{n:"Newark",c:"United States",f:"🇺🇸"},{n:"Baltimore",c:"United States",f:"🇺🇸"},{n:"Memphis",c:"United States",f:"🇺🇸"},{n:"Louisville",c:"United States",f:"🇺🇸"},{n:"Honolulu",c:"United States",f:"🇺🇸"},{n:"Anchorage",c:"United States",f:"🇺🇸"},{n:"Boise",c:"United States",f:"🇺🇸"},
+    {n:"Toronto",c:"Canada",f:"🇨🇦"},{n:"Montreal",c:"Canada",f:"🇨🇦"},{n:"Vancouver",c:"Canada",f:"🇨🇦"},{n:"Calgary",c:"Canada",f:"🇨🇦"},{n:"Edmonton",c:"Canada",f:"🇨🇦"},{n:"Ottawa",c:"Canada",f:"🇨🇦"},{n:"Winnipeg",c:"Canada",f:"🇨🇦"},{n:"Quebec City",c:"Canada",f:"🇨🇦"},{n:"Halifax",c:"Canada",f:"🇨🇦"},{n:"Victoria",c:"Canada",f:"🇨🇦"},
+    {n:"Mexico City",c:"Mexico",f:"🇲🇽"},{n:"Guadalajara",c:"Mexico",f:"🇲🇽"},{n:"Monterrey",c:"Mexico",f:"🇲🇽"},{n:"Cancún",c:"Mexico",f:"🇲🇽"},{n:"Oaxaca",c:"Mexico",f:"🇲🇽"},{n:"Playa del Carmen",c:"Mexico",f:"🇲🇽"},{n:"Tulum",c:"Mexico",f:"🇲🇽"},{n:"San Miguel de Allende",c:"Mexico",f:"🇲🇽"},
+    {n:"San José",c:"Costa Rica",f:"🇨🇷"},{n:"Panama City",c:"Panama",f:"🇵🇦"},{n:"Havana",c:"Cuba",f:"🇨🇺"},{n:"Nassau",c:"Bahamas",f:"🇧🇸"},{n:"Kingston",c:"Jamaica",f:"🇯🇲"},{n:"San Juan",c:"Puerto Rico",f:"🇵🇷"},
+    {n:"São Paulo",c:"Brazil",f:"🇧🇷"},{n:"Rio de Janeiro",c:"Brazil",f:"🇧🇷"},{n:"Brasília",c:"Brazil",f:"🇧🇷"},{n:"Florianópolis",c:"Brazil",f:"🇧🇷"},{n:"Buenos Aires",c:"Argentina",f:"🇦🇷"},{n:"Mendoza",c:"Argentina",f:"🇦🇷"},{n:"Bariloche",c:"Argentina",f:"🇦🇷"},{n:"Lima",c:"Peru",f:"🇵🇪"},{n:"Cusco",c:"Peru",f:"🇵🇪"},{n:"Bogotá",c:"Colombia",f:"🇨🇴"},{n:"Medellín",c:"Colombia",f:"🇨🇴"},{n:"Cartagena",c:"Colombia",f:"🇨🇴"},{n:"Santiago",c:"Chile",f:"🇨🇱"},{n:"Quito",c:"Ecuador",f:"🇪🇨"},{n:"Galápagos",c:"Ecuador",f:"🇪🇨"},{n:"La Paz",c:"Bolivia",f:"🇧🇴"},{n:"Montevideo",c:"Uruguay",f:"🇺🇾"},
+    {n:"London",c:"United Kingdom",f:"🇬🇧"},{n:"Birmingham",c:"United Kingdom",f:"🇬🇧"},{n:"Manchester",c:"United Kingdom",f:"🇬🇧"},{n:"Glasgow",c:"United Kingdom",f:"🇬🇧"},{n:"Edinburgh",c:"United Kingdom",f:"🇬🇧"},{n:"Liverpool",c:"United Kingdom",f:"🇬🇧"},{n:"Leeds",c:"United Kingdom",f:"🇬🇧"},{n:"Bristol",c:"United Kingdom",f:"🇬🇧"},{n:"Cardiff",c:"United Kingdom",f:"🇬🇧"},{n:"Belfast",c:"United Kingdom",f:"🇬🇧"},{n:"Oxford",c:"United Kingdom",f:"🇬🇧"},{n:"Cambridge",c:"United Kingdom",f:"🇬🇧"},{n:"Bath",c:"United Kingdom",f:"🇬🇧"},{n:"Dublin",c:"Ireland",f:"🇮🇪"},{n:"Cork",c:"Ireland",f:"🇮🇪"},{n:"Galway",c:"Ireland",f:"🇮🇪"},
+    {n:"Paris",c:"France",f:"🇫🇷"},{n:"Marseille",c:"France",f:"🇫🇷"},{n:"Lyon",c:"France",f:"🇫🇷"},{n:"Nice",c:"France",f:"🇫🇷"},{n:"Bordeaux",c:"France",f:"🇫🇷"},{n:"Strasbourg",c:"France",f:"🇫🇷"},{n:"Cannes",c:"France",f:"🇫🇷"},
+    {n:"Berlin",c:"Germany",f:"🇩🇪"},{n:"Hamburg",c:"Germany",f:"🇩🇪"},{n:"Munich",c:"Germany",f:"🇩🇪"},{n:"Cologne",c:"Germany",f:"🇩🇪"},{n:"Frankfurt",c:"Germany",f:"🇩🇪"},{n:"Stuttgart",c:"Germany",f:"🇩🇪"},{n:"Dresden",c:"Germany",f:"🇩🇪"},{n:"Heidelberg",c:"Germany",f:"🇩🇪"},
+    {n:"Madrid",c:"Spain",f:"🇪🇸"},{n:"Barcelona",c:"Spain",f:"🇪🇸"},{n:"Valencia",c:"Spain",f:"🇪🇸"},{n:"Seville",c:"Spain",f:"🇪🇸"},{n:"Bilbao",c:"Spain",f:"🇪🇸"},{n:"Granada",c:"Spain",f:"🇪🇸"},{n:"Ibiza",c:"Spain",f:"🇪🇸"},{n:"San Sebastián",c:"Spain",f:"🇪🇸"},
+    {n:"Rome",c:"Italy",f:"🇮🇹"},{n:"Milan",c:"Italy",f:"🇮🇹"},{n:"Naples",c:"Italy",f:"🇮🇹"},{n:"Florence",c:"Italy",f:"🇮🇹"},{n:"Venice",c:"Italy",f:"🇮🇹"},{n:"Turin",c:"Italy",f:"🇮🇹"},{n:"Bologna",c:"Italy",f:"🇮🇹"},{n:"Amalfi",c:"Italy",f:"🇮🇹"},{n:"Positano",c:"Italy",f:"🇮🇹"},{n:"Cinque Terre",c:"Italy",f:"🇮🇹"},
+    {n:"Lisbon",c:"Portugal",f:"🇵🇹"},{n:"Porto",c:"Portugal",f:"🇵🇹"},{n:"Faro",c:"Portugal",f:"🇵🇹"},{n:"Funchal",c:"Portugal",f:"🇵🇹"},
+    {n:"Amsterdam",c:"Netherlands",f:"🇳🇱"},{n:"Rotterdam",c:"Netherlands",f:"🇳🇱"},{n:"Brussels",c:"Belgium",f:"🇧🇪"},{n:"Bruges",c:"Belgium",f:"🇧🇪"},{n:"Antwerp",c:"Belgium",f:"🇧🇪"},
+    {n:"Stockholm",c:"Sweden",f:"🇸🇪"},{n:"Gothenburg",c:"Sweden",f:"🇸🇪"},{n:"Oslo",c:"Norway",f:"🇳🇴"},{n:"Bergen",c:"Norway",f:"🇳🇴"},{n:"Tromsø",c:"Norway",f:"🇳🇴"},{n:"Copenhagen",c:"Denmark",f:"🇩🇰"},{n:"Helsinki",c:"Finland",f:"🇫🇮"},{n:"Reykjavik",c:"Iceland",f:"🇮🇸"},
+    {n:"Warsaw",c:"Poland",f:"🇵🇱"},{n:"Kraków",c:"Poland",f:"🇵🇱"},{n:"Gdańsk",c:"Poland",f:"🇵🇱"},{n:"Prague",c:"Czech Republic",f:"🇨🇿"},{n:"Budapest",c:"Hungary",f:"🇭🇺"},{n:"Vienna",c:"Austria",f:"🇦🇹"},{n:"Salzburg",c:"Austria",f:"🇦🇹"},{n:"Bucharest",c:"Romania",f:"🇷🇴"},{n:"Sofia",c:"Bulgaria",f:"🇧🇬"},{n:"Athens",c:"Greece",f:"🇬🇷"},{n:"Mykonos",c:"Greece",f:"🇬🇷"},{n:"Santorini",c:"Greece",f:"🇬🇷"},{n:"Thessaloniki",c:"Greece",f:"🇬🇷"},{n:"Belgrade",c:"Serbia",f:"🇷🇸"},{n:"Dubrovnik",c:"Croatia",f:"🇭🇷"},{n:"Split",c:"Croatia",f:"🇭🇷"},{n:"Zagreb",c:"Croatia",f:"🇭🇷"},{n:"Tallinn",c:"Estonia",f:"🇪🇪"},{n:"Riga",c:"Latvia",f:"🇱🇻"},{n:"Vilnius",c:"Lithuania",f:"🇱🇹"},{n:"Bratislava",c:"Slovakia",f:"🇸🇰"},{n:"Ljubljana",c:"Slovenia",f:"🇸🇮"},{n:"Tbilisi",c:"Georgia",f:"🇬🇪"},{n:"Yerevan",c:"Armenia",f:"🇦🇲"},{n:"Baku",c:"Azerbaijan",f:"🇦🇿"},
+    {n:"Zurich",c:"Switzerland",f:"🇨🇭"},{n:"Geneva",c:"Switzerland",f:"🇨🇭"},{n:"Bern",c:"Switzerland",f:"🇨🇭"},{n:"Lucerne",c:"Switzerland",f:"🇨🇭"},{n:"Luxembourg City",c:"Luxembourg",f:"🇱🇺"},{n:"Valletta",c:"Malta",f:"🇲🇹"},
+    {n:"Moscow",c:"Russia",f:"🇷🇺"},{n:"Saint Petersburg",c:"Russia",f:"🇷🇺"},{n:"Almaty",c:"Kazakhstan",f:"🇰🇿"},{n:"Tashkent",c:"Uzbekistan",f:"🇺🇿"},{n:"Samarkand",c:"Uzbekistan",f:"🇺🇿"},
+    {n:"Dubai",c:"UAE",f:"🇦🇪"},{n:"Abu Dhabi",c:"UAE",f:"🇦🇪"},{n:"Doha",c:"Qatar",f:"🇶🇦"},{n:"Riyadh",c:"Saudi Arabia",f:"🇸🇦"},{n:"Jeddah",c:"Saudi Arabia",f:"🇸🇦"},{n:"Kuwait City",c:"Kuwait",f:"🇰🇼"},{n:"Muscat",c:"Oman",f:"🇴🇲"},{n:"Tel Aviv",c:"Israel",f:"🇮🇱"},{n:"Jerusalem",c:"Israel",f:"🇮🇱"},{n:"Amman",c:"Jordan",f:"🇯🇴"},{n:"Petra",c:"Jordan",f:"🇯🇴"},{n:"Beirut",c:"Lebanon",f:"🇱🇧"},{n:"Istanbul",c:"Turkey",f:"🇹🇷"},{n:"Antalya",c:"Turkey",f:"🇹🇷"},{n:"Cappadocia",c:"Turkey",f:"🇹🇷"},{n:"Bodrum",c:"Turkey",f:"🇹🇷"},
+    {n:"Cairo",c:"Egypt",f:"🇪🇬"},{n:"Alexandria",c:"Egypt",f:"🇪🇬"},{n:"Marrakech",c:"Morocco",f:"🇲🇦"},{n:"Casablanca",c:"Morocco",f:"🇲🇦"},{n:"Fez",c:"Morocco",f:"🇲🇦"},{n:"Tangier",c:"Morocco",f:"🇲🇦"},{n:"Tunis",c:"Tunisia",f:"🇹🇳"},{n:"Lagos",c:"Nigeria",f:"🇳🇬"},{n:"Accra",c:"Ghana",f:"🇬🇭"},{n:"Dakar",c:"Senegal",f:"🇸🇳"},{n:"Nairobi",c:"Kenya",f:"🇰🇪"},{n:"Mombasa",c:"Kenya",f:"🇰🇪"},{n:"Addis Ababa",c:"Ethiopia",f:"🇪🇹"},{n:"Zanzibar",c:"Tanzania",f:"🇹🇿"},{n:"Dar es Salaam",c:"Tanzania",f:"🇹🇿"},{n:"Kigali",c:"Rwanda",f:"🇷🇼"},{n:"Cape Town",c:"South Africa",f:"🇿🇦"},{n:"Johannesburg",c:"South Africa",f:"🇿🇦"},{n:"Durban",c:"South Africa",f:"🇿🇦"},{n:"Windhoek",c:"Namibia",f:"🇳🇦"},
+    {n:"Mumbai",c:"India",f:"🇮🇳"},{n:"Delhi",c:"India",f:"🇮🇳"},{n:"Bangalore",c:"India",f:"🇮🇳"},{n:"Hyderabad",c:"India",f:"🇮🇳"},{n:"Chennai",c:"India",f:"🇮🇳"},{n:"Kolkata",c:"India",f:"🇮🇳"},{n:"Pune",c:"India",f:"🇮🇳"},{n:"Jaipur",c:"India",f:"🇮🇳"},{n:"Goa",c:"India",f:"🇮🇳"},{n:"Agra",c:"India",f:"🇮🇳"},{n:"Varanasi",c:"India",f:"🇮🇳"},{n:"Udaipur",c:"India",f:"🇮🇳"},{n:"Colombo",c:"Sri Lanka",f:"🇱🇰"},{n:"Kathmandu",c:"Nepal",f:"🇳🇵"},{n:"Dhaka",c:"Bangladesh",f:"🇧🇩"},
+    {n:"Bangkok",c:"Thailand",f:"🇹🇭"},{n:"Chiang Mai",c:"Thailand",f:"🇹🇭"},{n:"Phuket",c:"Thailand",f:"🇹🇭"},{n:"Singapore",c:"Singapore",f:"🇸🇬"},{n:"Kuala Lumpur",c:"Malaysia",f:"🇲🇾"},{n:"Penang",c:"Malaysia",f:"🇲🇾"},{n:"Jakarta",c:"Indonesia",f:"🇮🇩"},{n:"Bali",c:"Indonesia",f:"🇮🇩"},{n:"Manila",c:"Philippines",f:"🇵🇭"},{n:"Cebu",c:"Philippines",f:"🇵🇭"},{n:"Ho Chi Minh City",c:"Vietnam",f:"🇻🇳"},{n:"Hanoi",c:"Vietnam",f:"🇻🇳"},{n:"Hội An",c:"Vietnam",f:"🇻🇳"},{n:"Da Nang",c:"Vietnam",f:"🇻🇳"},{n:"Phnom Penh",c:"Cambodia",f:"🇰🇭"},{n:"Siem Reap",c:"Cambodia",f:"🇰🇭"},{n:"Luang Prabang",c:"Laos",f:"🇱🇦"},{n:"Yangon",c:"Myanmar",f:"🇲🇲"},
+    {n:"Tokyo",c:"Japan",f:"🇯🇵"},{n:"Osaka",c:"Japan",f:"🇯🇵"},{n:"Kyoto",c:"Japan",f:"🇯🇵"},{n:"Hiroshima",c:"Japan",f:"🇯🇵"},{n:"Sapporo",c:"Japan",f:"🇯🇵"},{n:"Fukuoka",c:"Japan",f:"🇯🇵"},{n:"Nara",c:"Japan",f:"🇯🇵"},{n:"Nagoya",c:"Japan",f:"🇯🇵"},{n:"Yokohama",c:"Japan",f:"🇯🇵"},{n:"Seoul",c:"South Korea",f:"🇰🇷"},{n:"Busan",c:"South Korea",f:"🇰🇷"},{n:"Jeju",c:"South Korea",f:"🇰🇷"},{n:"Beijing",c:"China",f:"🇨🇳"},{n:"Shanghai",c:"China",f:"🇨🇳"},{n:"Guangzhou",c:"China",f:"🇨🇳"},{n:"Shenzhen",c:"China",f:"🇨🇳"},{n:"Chengdu",c:"China",f:"🇨🇳"},{n:"Hangzhou",c:"China",f:"🇨🇳"},{n:"Hong Kong",c:"Hong Kong",f:"🇭🇰"},{n:"Macau",c:"Macau",f:"🇲🇴"},{n:"Taipei",c:"Taiwan",f:"🇹🇼"},{n:"Ulaanbaatar",c:"Mongolia",f:"🇲🇳"},
+    {n:"Sydney",c:"Australia",f:"🇦🇺"},{n:"Melbourne",c:"Australia",f:"🇦🇺"},{n:"Brisbane",c:"Australia",f:"🇦🇺"},{n:"Perth",c:"Australia",f:"🇦🇺"},{n:"Adelaide",c:"Australia",f:"🇦🇺"},{n:"Gold Coast",c:"Australia",f:"🇦🇺"},{n:"Cairns",c:"Australia",f:"🇦🇺"},{n:"Auckland",c:"New Zealand",f:"🇳🇿"},{n:"Wellington",c:"New Zealand",f:"🇳🇿"},{n:"Queenstown",c:"New Zealand",f:"🇳🇿"},{n:"Suva",c:"Fiji",f:"🇫🇯"},{n:"Papeete",c:"French Polynesia",f:"🇵🇫"},
+  ];
+
+  function countryToFlag(code) {
+    if (!code || code.length !== 2) return '🌍';
+    return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E0 + c.charCodeAt(0) - 65));
+  }
+
+  let cityFocusIndex = -1;
+  let selectedCityObj = null;
+  let searchDebounce;
+
+  function citySearch(q) {
+    clearTimeout(searchDebounce);
+    const dd = document.getElementById('cityDropdown');
+    if (!q || q.length < 1) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+
+    const seedMatches = SEED_CITIES.filter(city =>
+      city.n.toLowerCase().includes(q.toLowerCase()) ||
+      city.c.toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 10);
+
+    renderCityDropdown(seedMatches, q);
+
+    // Live lookup via REST Countries cities endpoint (no key needed)
+    searchDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://countriesnow.space/api/v0.1/countries/cities/q?query=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.data && data.data.length > 0) {
+          const seedNames = new Set(seedMatches.map(s => s.n.toLowerCase()));
+          const extra = data.data
+            .filter(name => !seedNames.has(name.toLowerCase()) && name.toLowerCase().includes(q.toLowerCase()))
+            .slice(0, 6)
+            .map(name => ({ n: name, c: '—', f: '🌍' }));
+          if (extra.length) renderCityDropdown([...seedMatches, ...extra].slice(0, 10), q);
+        }
+      } catch {}
+    }, 350);
+  }
+
+  function renderCityDropdown(cities, q) {
+    const dd = document.getElementById('cityDropdown');
+    if (!cities.length) { dd.classList.remove('open'); return; }
+    cityFocusIndex = -1;
+    const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    dd.innerHTML = cities.map((city, i) => {
+      const hi = city.n.replace(new RegExp('(' + safeQ + ')', 'gi'), '<strong style="color:var(--cream)">$1</strong>');
+      const safeName = city.n.replace(/'/g, "\\'");
+      const safeCountry = city.c.replace(/'/g, "\\'");
+      return '<div class="city-opt" data-name="' + city.n + '" data-i="' + i + '"' +
+        ' onclick="selectCity(\'' + safeName + '\',\'' + safeCountry + '\',\'' + city.f + '\')">' +
+        '<span class="city-opt-flag">' + city.f + '</span>' +
+        '<span class="city-opt-name">' + hi + '</span>' +
+        '<span class="city-opt-country">' + city.c + '</span></div>';
+    }).join('');
+    dd.classList.add('open');
+  }
+
+  function selectCity(name, country, flag) {
+    document.getElementById('t-city').value = name;
+    selectedCityObj = { name, country, flag };
+    const dd = document.getElementById('cityDropdown');
+    dd.classList.remove('open');
+    dd.innerHTML = '';
+  }
+
+  function cityKey(e) {
+    const dd = document.getElementById('cityDropdown');
+    const opts = dd.querySelectorAll('.city-opt');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      cityFocusIndex = Math.min(cityFocusIndex + 1, opts.length - 1);
+      opts.forEach((o,i) => o.classList.toggle('focused', i === cityFocusIndex));
+      opts[cityFocusIndex]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      cityFocusIndex = Math.max(cityFocusIndex - 1, 0);
+      opts.forEach((o,i) => o.classList.toggle('focused', i === cityFocusIndex));
+    } else if (e.key === 'Enter' && cityFocusIndex >= 0) {
+      e.preventDefault();
+      const opt = opts[cityFocusIndex];
+      selectCity(opt.dataset.name, opt.dataset.country || '', opt.dataset.flag || '🌍');
+    } else if (e.key === 'Escape') {
+      dd.classList.remove('open');
+    }
+  }
+
+
+  // Close dropdown on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.city-wrap')) {
+      const dd = document.getElementById('cityDropdown');
+      if (dd) dd.classList.remove('open');
+    }
+  });
+
+  // ── Vibe picker ───────────────────────────────────────────
+  let selectedVibe = 'adventure';
+  function selVibe(btn, vibe) {
+    selectedVibe = vibe;
+    document.querySelectorAll('.vibe-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  // ── Emoji picker ──────────────────────────────────────────
+  let selectedEmoji = '✈️';
+  function selEmoji(btn, emoji) {
+    selectedEmoji = emoji;
+    document.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    setTimeout(() => document.getElementById('t-city').focus(), 100);
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.getElementById('t-city').value  = '';
+    document.getElementById('t-from').value  = '';
+    document.getElementById('t-to').value    = '';
+    document.getElementById('t-notes').value = '';
+    if (typeof selectedCityObj !== 'undefined') selectedCityObj = null;
+    if (typeof selectedVibe    !== 'undefined') selectedVibe    = 'adventure';
+    if (typeof selectedEmoji   !== 'undefined') selectedEmoji   = '✈️';
+    document.querySelectorAll('.vibe-btn').forEach((b,i) => b.classList.toggle('sel', i===0));
+    document.querySelectorAll('.emoji-opt').forEach((b,i) => b.classList.toggle('sel', i===0));
+    const dd = document.getElementById('cityDropdown');
+    if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
+  }
+  }
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Privacy toggle
+  function selPrivacy(btn, val) {
+    document.querySelectorAll('.privacy-opt').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    selectedPrivacy = val;
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, icon='✓') {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
+    t.classList.add('show', 'gold');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function fmtDate(d) {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.querySelectorAll('a,button,input').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)'; });
+    el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+  // ── Boot ──────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
