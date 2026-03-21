@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
+      --sidebar: 220px;
+    }
+    html, body { height: var(--app-height, 100vh); }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height, 100vh); }
+
+    /* SIDEBAR */
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
+
+    /* MAIN */
+    main { overflow-y: auto; display: flex; flex-direction: column; height: 100vh; min-width: 0; }
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* PROFILE HERO */
+    .profile-hero {
+      position: relative; overflow: hidden;
+      background: var(--deep);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+      flex-shrink: 0;
+    }
+    /* Animated map grid background */
+    .hero-grid-bg {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 44px 44px;
+      animation: gridDrift 24s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes gridDrift { from{background-position:0 0} to{background-position:44px 44px} }
+    .hero-glow { position: absolute; top: -60px; right: -60px; width: 500px; height: 300px; background: radial-gradient(ellipse, rgba(201,168,76,0.07) 0%, transparent 65%); pointer-events: none; }
+
+    /* Cover strip */
+    .cover-strip { height: 120px; position: relative; overflow: hidden; }
+    .cover-pattern {
+      position: absolute; inset: 0;
+      background:
+        repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(201,168,76,0.04) 20px, rgba(201,168,76,0.04) 21px),
+        repeating-linear-gradient(-45deg, transparent, transparent 20px, rgba(201,168,76,0.03) 20px, rgba(201,168,76,0.03) 21px),
+        var(--deep);
+    }
+    .cover-edit { position: absolute; bottom: 12px; right: 20px; background: rgba(10,10,15,0.7); border: 1px solid var(--border); padding: 6px 14px; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; font-family: 'DM Mono', monospace; }
+    .cover-edit:hover { color: var(--cream); border-color: rgba(255,255,255,0.15); }
+
+    /* Profile body */
+    .profile-body { padding: 0 36px 32px; position: relative; }
+    .avatar-row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: -36px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .profile-av-wrap { position: relative; }
+    .profile-av {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-dim), rgba(201,168,76,0.25));
+      border: 3px solid var(--night);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px; font-weight: 300; color: var(--gold);
+      position: relative; z-index: 2;
+    }
+    .profile-online { position: absolute; bottom: 4px; right: 4px; width: 14px; height: 14px; background: var(--green); border-radius: 50%; border: 3px solid var(--night); z-index: 3; }
+    .avatar-actions { display: flex; gap: 10px; align-items: center; }
+    .pa-btn { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; padding: 10px 20px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .pa-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--cream); }
+    .pa-btn.gold { background: var(--gold); border-color: var(--gold); color: var(--night); }
+    .pa-btn.gold:hover { background: var(--gold-light); border-color: var(--gold-light); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }
+
+    .profile-name { font-family: 'Cormorant Garamond', serif; font-size: 38px; font-weight: 300; line-height: 1; margin-bottom: 4px; }
+    .profile-handle { font-size: 11px; color: var(--dim); letter-spacing: 0.12em; margin-bottom: 10px; }
+    .profile-bio { font-size: 12px; color: var(--muted); line-height: 1.7; letter-spacing: 0.04em; max-width: 480px; margin-bottom: 14px; }
+    .profile-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+    .meta-item { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; display: flex; align-items: center; gap: 6px; }
+    .meta-item span { color: var(--dim); }
+
+    /* Stats strip */
+    .stats-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border-top: 1px solid var(--border); min-width: 0; }
+    .stat-box { background: var(--deep); padding: 18px 0; text-align: center; transition: background 0.2s; cursor: none; }
+    .stat-box:hover { background: var(--card); }
+    .stat-val { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--cream); line-height: 1; }
+    .stat-val em { font-style: normal; color: var(--gold); font-size: 20px; }
+    .stat-lbl { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+    /* TAB BAR */
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 36px; background: var(--deep); position: sticky; top: 0; z-index: 5; flex-shrink: 0; overflow-x: auto; }
+    .tbar-item { padding: 14px 0; margin-right: 28px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-bottom: -1px; }
+    .tbar-item.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tbar-item:hover:not(.active) { color: var(--cream); }
+
+    /* CONTENT */
+    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 280px; gap: 24px; min-width: 0; }
+
+    /* TAB PANELS */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Trips timeline */
+    .section-label { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section-label::before { content: ''; width: 20px; height: 1px; background: var(--gold); display: block; }
+
+    .trip-timeline { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .tl-item {
+      display: grid; grid-template-columns: 80px 1fr;
+      gap: 0; cursor: none; transition: all 0.2s;
+    }
+    .tl-item:hover .tl-card { border-color: rgba(201,168,76,0.25); background: var(--card2); }
+    .tl-year { font-family: 'Cormorant Garamond', serif; font-size: 13px; color: var(--dim); padding-top: 16px; letter-spacing: 0.06em; }
+    .tl-card { background: var(--card); border: 1px solid var(--border); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; transition: all 0.2s; }
+    .tl-city { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; }
+    .tl-dates { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-top: 3px; }
+    .tl-badge { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 12px; flex-shrink: 0; }
+    .tl-badge.upcoming { background: rgba(122,174,224,0.08); border: 1px solid rgba(122,174,224,0.2); color: var(--blue); }
+    .tl-badge.completed { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--dim); }
+    .tl-badge.active { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.2); color: var(--green); }
+    .tl-friends { display: flex; align-items: center; gap: -6px; }
+    .tl-av { width: 22px; height: 22px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid var(--card); margin-right: -7px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--gold); }
+
+    /* CITY MAP placeholder */
+    .city-map { background: var(--card); border: 1px solid var(--border); padding: 28px; margin-bottom: 28px; }
+    .map-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .map-title::before { content: ''; width: 18px; height: 1px; background: var(--gold); display: block; }
+    .city-bubbles { display: flex; flex-wrap: wrap; gap: 8px; }
+    .city-bubble { font-size: 10px; letter-spacing: 0.1em; padding: 6px 14px; border: 1px solid var(--border); color: var(--muted); transition: all 0.2s; cursor: none; }
+    .city-bubble:hover { border-color: rgba(201,168,76,0.3); color: var(--gold); background: var(--gold-dim); }
+    .city-bubble.visited { border-color: rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); }
+
+    /* RIGHT COLUMN */
+    .right-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+    .widget { background: var(--card); border: 1px solid var(--border); }
+    .widget-header { padding: 14px 18px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
+    .widget-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .widget-title::before { content: ''; width: 16px; height: 1px; background: var(--gold); display: block; }
+    .widget-body { padding: 14px 18px; }
+
+    /* Next trip widget */
+    .next-trip-city { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; margin-bottom: 4px; }
+    .next-trip-date { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 14px; }
+    .countdown-row { display: flex; gap: 12px; }
+    .cd-box { flex: 1; background: var(--deep); border: 1px solid var(--border2); padding: 10px 0; text-align: center; }
+    .cd-num { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; color: var(--cream); }
+    .cd-lbl { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+
+    /* Friend overlap widget */
+    .overlap-list { display: flex; flex-direction: column; gap: 0; }
+    .ol-item { display: flex; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border2); cursor: none; transition: all 0.2s; }
+    .ol-item:last-child { border-bottom: none; }
+    .ol-item:hover .ol-name { color: var(--gold); }
+    .ol-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .ol-info { flex: 1; }
+    .ol-name { font-size: 11px; color: var(--cream); transition: color 0.2s; }
+    .ol-city { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .ol-days { font-size: 9px; color: var(--gold); letter-spacing: 0.1em; white-space: nowrap; }
+
+    /* Travel style tags */
+    .tag-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .style-tag { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border: 1px solid rgba(201,168,76,0.2); color: var(--gold); background: var(--gold-dim); }
+
+    /* Edit profile modal */
+
+    /* PRESENCE TOGGLE */
+    .presence-setting { background: var(--card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .ps-row { display: flex; align-items: center; gap: 14px; }
+    .ps-icon { font-size: 20px; flex-shrink: 0; }
+    .ps-info { flex: 1; }
+    .ps-title { font-size: 12px; color: var(--cream); letter-spacing: 0.05em; margin-bottom: 3px; }
+    .ps-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; line-height: 1.6; }
+    .ps-city { font-size: 10px; color: var(--green); margin-top: 4px; letter-spacing: 0.06em; }
+    .toggle-wrap { flex-shrink: 0; }
+    .toggle { position: relative; width: 44px; height: 24px; cursor: none; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--deep); border: 1px solid var(--border); transition: all 0.25s; border-radius: 24px; }
+    .toggle input:checked + .toggle-track { background: rgba(122,224,168,0.15); border-color: rgba(122,224,168,0.4); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--dim); border-radius: 50%; transition: all 0.25s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--green); }
+    .presence-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border2); display: none; }
+    .presence-detail.show { display: block; }
+    .pd-city-row { display: flex; align-items: center; gap: 10px; }
+    .pd-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; position: relative; flex-shrink: 0; }
+    .pd-dot::before { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(122,224,168,0.3); animation: pdPulse 2s ease-out infinite; }
+    @keyframes pdPulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+    .pd-city-text { font-size: 11px; color: var(--green); letter-spacing: 0.06em; }
+    .pd-update-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-left: auto; }
+    .pd-update-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+    .pd-note { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; line-height: 1.6; margin-top: 10px; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,15,0.88); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; }
+
+    /* PRESENCE TOGGLE */
+    .presence-setting { background: var(--card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .ps-row { display: flex; align-items: center; gap: 14px; }
+    .ps-icon { font-size: 20px; flex-shrink: 0; }
+    .ps-info { flex: 1; }
+    .ps-title { font-size: 12px; color: var(--cream); letter-spacing: 0.05em; margin-bottom: 3px; }
+    .ps-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; line-height: 1.6; }
+    .ps-city { font-size: 10px; color: var(--green); margin-top: 4px; letter-spacing: 0.06em; }
+    .toggle-wrap { flex-shrink: 0; }
+    .toggle { position: relative; width: 44px; height: 24px; cursor: none; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--deep); border: 1px solid var(--border); transition: all 0.25s; border-radius: 24px; }
+    .toggle input:checked + .toggle-track { background: rgba(122,224,168,0.15); border-color: rgba(122,224,168,0.4); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--dim); border-radius: 50%; transition: all 0.25s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--green); }
+    .presence-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border2); display: none; }
+    .presence-detail.show { display: block; }
+    .pd-city-row { display: flex; align-items: center; gap: 10px; }
+    .pd-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; position: relative; flex-shrink: 0; }
+    .pd-dot::before { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(122,224,168,0.3); animation: pdPulse 2s ease-out infinite; }
+    @keyframes pdPulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+    .pd-city-text { font-size: 11px; color: var(--green); letter-spacing: 0.06em; }
+    .pd-update-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-left: auto; }
+    .pd-update-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+    .pd-note { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; line-height: 1.6; margin-top: 10px; }
+
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--deep); border: 1px solid var(--border); width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; animation: modalIn 0.22s ease; }
+    @keyframes modalIn { from{opacity:0;transform:translateY(12px) scale(0.98)} to{opacity:1;transform:none} }
+    .modal-header { padding: 22px 26px; border-bottom: 1px solid var(--border2); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--deep); z-index: 2; }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+    .modal-title em { font-style: italic; color: var(--gold); }
+    .modal-close { background: none; border: none; font-size: 16px; color: var(--dim); cursor: none; padding: 0; transition: color 0.2s; }
+    .modal-close:hover { color: var(--cream); }
+    .modal-body { padding: 24px 26px; display: flex; flex-direction: column; gap: 18px; }
+    .m-field label { display: block; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .m-field input, .m-field textarea { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; resize: none; }
+    .m-field input:focus, .m-field textarea:focus { border-color: rgba(201,168,76,0.4); }
+    .m-field input::placeholder, .m-field textarea::placeholder { color: var(--dim); }
+    .m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-footer { padding: 0 26px 24px; display: flex; gap: 10px; }
+    .m-save { flex: 1; background: var(--gold); border: none; padding: 13px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; }
+    .m-save:hover { background: var(--gold-light); }
+    .m-cancel { background: none; border: 1px solid var(--border); padding: 13px 20px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .m-cancel:hover { border-color: rgba(255,255,255,0.18); color: var(--cream); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.4s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* RESPONSIVE FIXES */
+    @media (max-width: 900px) {
+      .content { grid-template-columns: 1fr; }
+      .right-col { order: -1; }
+    }
+    @media (max-width: 600px) {
+      .profile-body { padding: 0 16px 24px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr); }
+      .avatar-actions { flex-wrap: wrap; }
+      .content { padding: 16px; }
+    }
+
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+    .mob-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--deep); border-top: 1px solid var(--border); z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; transition: color 0.2s; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block !important; }
+      .shell { grid-template-columns: 1fr !important; }
+      main { padding-bottom: 70px; height: var(--app-height, 100vh); }
+      .cursor, .cursor-ring { display: none; }
+    }
+
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
+  </style>
+</head>
+<body>
+<div class="page-loading" id="pageLoader"><div class="pl-logo">LAY<span>◆</span>VER</div><div class="pl-bar"></div></div>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-messages.html" class="nav-item"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-alerts.html" class="nav-item"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item active"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">…</div>
+          <div class="user-status">● Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- PROFILE HERO -->
+    <div class="profile-hero fade-up">
+      <div class="hero-grid-bg"></div>
+      <div class="hero-glow"></div>
+
+      <div class="cover-strip">
+        <div class="cover-pattern"></div>
+        <button class="cover-edit" onclick="toast('Cover photo upload coming soon!')">Edit Cover</button>
+      </div>
+
+      <div class="profile-body">
+        <div class="avatar-row">
+          <div class="profile-av-wrap">
+            <div class="profile-av" id="profileAv">?</div>
+            <div class="profile-online"></div>
+          </div>
+          <div class="avatar-actions">
+            <button class="pa-btn" onclick="toast('Share profile link copied! 🔗')">Share Profile</button>
+            <button class="pa-btn" onclick="toast('Opening messages!')">Message</button>
+            <button class="pa-btn gold" onclick="openEditModal()">Edit Profile</button>
+          </div>
+        </div>
+
+        <div class="profile-name" id="profileName">Your Name</div>
+        <div class="profile-handle" id="profileHandle">@handle</div>
+        <div class="profile-bio" id="profileBio">Frequent traveler. Always looking for the next overlap. Based in New York but rarely there.</div>
+        <div class="profile-meta">
+          <div class="meta-item">📍 <span id="profileCity">New York, NY</span></div>
+          <div class="meta-item">✈️ <span id="profileFreq">Monthly traveler</span></div>
+          <div class="meta-item">👥 <span>4 friends</span></div>
+          <div class="meta-item">🗓 <span>Joined March 2025</span></div>
+        </div>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="stats-strip">
+        <div class="stat-box">
+          <div class="stat-val" id="statTrips">0</div>
+          <div class="stat-lbl">Trips</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statCities">7</div>
+          <div class="stat-lbl">Cities</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">3</div>
+          <div class="stat-lbl">Countries</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">12<em>k</em></div>
+          <div class="stat-lbl">Miles</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">6</div>
+          <div class="stat-lbl">Overlaps</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+      <button class="tbar-item active" onclick="switchTab('trips',this)">Trips</button>
+      <button class="tbar-item" onclick="switchTab('cities',this)">Cities</button>
+      <button class="tbar-item" onclick="switchTab('memories',this)">Memories</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- LEFT: Tab panels -->
+      <div>
+
+        <!-- TRIPS TAB -->
+        <div class="tab-panel active" id="panel-trips">
+          <div class="section-label" style="margin-bottom:16px">Upcoming</div>
+          <div class="trip-timeline" id="upcomingTrips">
+            <div class="tl-item">
+              <div class="tl-year">Mar</div>
+              <div class="tl-card">
+                <div>
+                  <div class="tl-city">Newark</div>
+                  <div class="tl-dates">Mar 14 – Mar 22, 2025</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <div class="tl-friends">
+                    <div class="tl-av">A</div>
+                    <div class="tl-av">T</div>
+                  </div>
+                  <div class="tl-badge active">● Live now</div>
+                </div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">Apr</div>
+              <div class="tl-card">
+                <div>
+                  <div class="tl-city">London</div>
+                  <div class="tl-dates">Apr 2 – Apr 6, 2025</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <div class="tl-friends">
+                    <div class="tl-av">J</div>
+                  </div>
+                  <div class="tl-badge upcoming">Upcoming</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label">Past Trips</div>
+          <div class="trip-timeline">
+            <div class="tl-item">
+              <div class="tl-year">Jan '25</div>
+              <div class="tl-card">
+                <div><div class="tl-city">Tokyo</div><div class="tl-dates">Jan 8 – Jan 16, 2025</div></div>
+                <div class="tl-badge completed">Completed</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">Dec '24</div>
+              <div class="tl-card">
+                <div><div class="tl-city">Paris</div><div class="tl-dates">Dec 20 – Dec 27, 2024</div></div>
+                <div class="tl-badge completed">Completed</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">Nov '24</div>
+              <div class="tl-card">
+                <div><div class="tl-city">Austin</div><div class="tl-dates">Nov 3 – Nov 5, 2024</div></div>
+                <div class="tl-badge completed">Completed</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">Oct '24</div>
+              <div class="tl-card">
+                <div><div class="tl-city">Berlin</div><div class="tl-dates">Oct 14 – Oct 20, 2024</div></div>
+                <div class="tl-badge completed">Completed</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-year">Sep '24</div>
+              <div class="tl-card">
+                <div><div class="tl-city">Lisbon</div><div class="tl-dates">Sep 1 – Sep 8, 2024</div></div>
+                <div class="tl-badge completed">Completed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CITIES TAB -->
+        <div class="tab-panel" id="panel-cities">
+          <div class="section-label">Cities Visited</div>
+          <div class="city-map">
+            <div class="map-title">Your travel footprint</div>
+            <div class="city-bubbles">
+              <div class="city-bubble visited">🇺🇸 New York</div>
+              <div class="city-bubble visited">🇯🇵 Tokyo</div>
+              <div class="city-bubble visited">🇫🇷 Paris</div>
+              <div class="city-bubble visited">🇩🇪 Berlin</div>
+              <div class="city-bubble visited">🇵🇹 Lisbon</div>
+              <div class="city-bubble visited">🇬🇧 London</div>
+              <div class="city-bubble visited">🇺🇸 Austin</div>
+              <div class="city-bubble">🇯🇵 Kyoto</div>
+              <div class="city-bubble">🇪🇸 Barcelona</div>
+              <div class="city-bubble">🇳🇱 Amsterdam</div>
+              <div class="city-bubble">🇸🇬 Singapore</div>
+              <div class="city-bubble">🇦🇪 Dubai</div>
+            </div>
+            <div style="font-size:10px;color:var(--dim);margin-top:16px;letter-spacing:0.08em">Gold = visited · Click to explore city page</div>
+          </div>
+          <div class="section-label">Most Visited</div>
+          <div class="trip-timeline">
+            <div class="tl-item"><div class="tl-year" style="font-size:16px;color:var(--gold);">3×</div><div class="tl-card"><div><div class="tl-city">New York</div><div class="tl-dates">Last visited Mar 2025</div></div></div></div>
+            <div class="tl-item"><div class="tl-year" style="font-size:16px;color:var(--gold);">2×</div><div class="tl-card"><div><div class="tl-city">Tokyo</div><div class="tl-dates">Last visited Jan 2025</div></div></div></div>
+            <div class="tl-item"><div class="tl-year" style="font-size:16px;color:var(--gold);">1×</div><div class="tl-card"><div><div class="tl-city">Paris</div><div class="tl-dates">Last visited Dec 2024</div></div></div></div>
+          </div>
+        </div>
+
+        <!-- MEMORIES TAB -->
+        <div class="tab-panel" id="panel-memories">
+          <div class="section-label">Travel Memories</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border)">
+            <div class="memory-cell" style="background:var(--card);padding:28px;display:flex;flex-direction:column;gap:8px;cursor:none;transition:background 0.2s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='var(--card)'">
+              <div style="font-size:28px">🍜</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:16px">Ichiran at midnight</div>
+              <div style="font-size:10px;color:var(--muted)">Tokyo · Jan 2025</div>
+            </div>
+            <div class="memory-cell" style="background:var(--card);padding:28px;display:flex;flex-direction:column;gap:8px;cursor:none;transition:background 0.2s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='var(--card)'">
+              <div style="font-size:28px">🗼</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:16px">Eiffel at golden hour</div>
+              <div style="font-size:10px;color:var(--muted)">Paris · Dec 2024</div>
+            </div>
+            <div class="memory-cell" style="background:var(--card);padding:28px;display:flex;flex-direction:column;gap:8px;cursor:none;transition:background 0.2s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='var(--card)'">
+              <div style="font-size:28px">🎸</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:16px">Live music on 6th St</div>
+              <div style="font-size:10px;color:var(--muted)">Austin · Nov 2024</div>
+            </div>
+            <div class="memory-cell" style="background:var(--card);padding:28px;display:flex;flex-direction:column;gap:8px;cursor:none;transition:background 0.2s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='var(--card)'">
+              <div style="font-size:28px">🍺</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:16px">Kreuzberg with Thad</div>
+              <div style="font-size:10px;color:var(--muted)">Berlin · Oct 2024</div>
+            </div>
+            <div class="memory-cell" style="background:var(--card);padding:28px;display:flex;flex-direction:column;gap:8px;cursor:none;transition:background 0.2s" onmouseenter="this.style.background='var(--card2)'" onmouseleave="this.style.background='var(--card)'">
+              <div style="font-size:28px">🌊</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:16px">Cascais day trip</div>
+              <div style="font-size:10px;color:var(--muted)">Lisbon · Sep 2024</div>
+            </div>
+            <div style="background:var(--deep);border:1px dashed rgba(255,255,255,0.06);padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:none;transition:all 0.2s" onmouseenter="this.style.borderColor='rgba(201,168,76,0.25)'" onmouseleave="this.style.borderColor='rgba(255,255,255,0.06)'" onclick="toast('Add memory coming soon!')">
+              <div style="font-size:24px;opacity:0.3">+</div>
+              <div style="font-size:10px;color:var(--dim);letter-spacing:0.1em">Add Memory</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="right-col fade-up" style="animation-delay:0.1s">
+
+        <!-- Next trip -->
+        <!-- Live Presence Setting -->
+        <div class="presence-setting">
+          <div class="ps-row">
+            <div class="ps-icon">📍</div>
+            <div class="ps-info">
+              <div class="ps-title">Live Location Sharing</div>
+              <div class="ps-sub">Let friends see which city you're in right now. You control when it's on.</div>
+              <div class="ps-city" id="ps-city-display" style="display:none"></div>
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle">
+                <input type="checkbox" id="presenceToggle" onchange="handlePresenceToggle(this.checked)"/>
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div class="presence-detail" id="presenceDetail">
+            <div class="pd-city-row">
+              <div class="pd-dot"></div>
+              <div class="pd-city-text" id="pdCityText">Detecting your city…</div>
+              <button class="pd-update-btn" onclick="refreshLocation()">Refresh</button>
+            </div>
+            <div class="pd-note">Your city is visible to friends while this is on. It updates each time you open the app.</div>
+          </div>
+        </div>
+
+        <div class="widget">
+          <div class="widget-header">
+            <span class="widget-title">Next Trip</span>
+          </div>
+          <div class="widget-body">
+            <div class="next-trip-city">London</div>
+            <div class="next-trip-date">Apr 2 – Apr 6, 2025</div>
+            <div class="countdown-row" id="countdownRow">
+              <div class="cd-box"><div class="cd-num" id="cdDays">22</div><div class="cd-lbl">Days</div></div>
+              <div class="cd-box"><div class="cd-num" id="cdHours">14</div><div class="cd-lbl">Hours</div></div>
+              <div class="cd-box"><div class="cd-num" id="cdMins">37</div><div class="cd-lbl">Mins</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Friend overlaps -->
+        <div class="widget">
+          <div class="widget-header">
+            <span class="widget-title">Friend Overlaps</span>
+          </div>
+          <div class="widget-body" style="padding-top:6px;padding-bottom:6px">
+            <div class="overlap-list">
+              <div class="ol-item">
+                <div class="ol-av">A</div>
+                <div class="ol-info"><div class="ol-name">Alex Chen</div><div class="ol-city">📍 Newark</div></div>
+                <div class="ol-days">4 days</div>
+              </div>
+              <div class="ol-item">
+                <div class="ol-av">T</div>
+                <div class="ol-info"><div class="ol-name">Thad Williams</div><div class="ol-city">📍 Newark</div></div>
+                <div class="ol-days">2 days</div>
+              </div>
+              <div class="ol-item">
+                <div class="ol-av">J</div>
+                <div class="ol-info"><div class="ol-name">Julia Santos</div><div class="ol-city">📍 London</div></div>
+                <div class="ol-days">1 day</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Travel style -->
+        <div class="widget">
+          <div class="widget-header">
+            <span class="widget-title">Travel Style</span>
+            <button style="font-size:10px;color:var(--gold);background:none;border:none;cursor:none;font-family:'DM Mono',monospace;letter-spacing:0.1em" onclick="openEditModal()">Edit</button>
+          </div>
+          <div class="widget-body">
+            <div class="tag-row">
+              <div class="style-tag">Food-first</div>
+              <div class="style-tag">City explorer</div>
+              <div class="style-tag">Business travel</div>
+              <div class="style-tag">Night owl</div>
+              <div class="style-tag">Solo-friendly</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Share card -->
+        <div class="widget">
+          <div class="widget-body" style="text-align:center;padding:22px">
+            <div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Your Profile Card</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);margin-bottom:4px" id="shareCardName">Your Name</div>
+            <div style="font-size:10px;color:var(--dim);letter-spacing:0.08em;margin-bottom:16px">layover.travel/<span id="shareHandle">handle</span></div>
+            <button class="pa-btn gold" style="width:100%" onclick="toast('Profile link copied! ✈')">Copy Link</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Edit <em>profile.</em></div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-row">
+        <div class="m-field"><label>First Name</label><input type="text" id="edit-first" placeholder="Alex"/></div>
+        <div class="m-field"><label>Last Name</label><input type="text" id="edit-last" placeholder="Kim"/></div>
+      </div>
+      <div class="m-field"><label>Username</label><input type="text" id="edit-username" placeholder="@yourhandle"/></div>
+      <div class="m-field"><label>Bio</label><textarea id="edit-bio" rows="3" placeholder="A few words about how you travel…"></textarea></div>
+      <div class="m-row">
+        <div class="m-field"><label>Home City</label><input type="text" id="edit-city" placeholder="New York, NY"/></div>
+        <div class="m-field"><label>Travel Frequency</label><input type="text" id="edit-freq" placeholder="Monthly"/></div>
+      </div>
+      <div class="m-field"><label>Travel Style Tags <span style="color:var(--dim)">(comma separated)</span></label><input type="text" id="edit-tags" placeholder="Food-first, City explorer, Night owl"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="m-save" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  let profile = { first: '', last: '', username: '', bio: '', city: '', freq: '', tags: '' };
+
+  // ── Init ──────────────────────────────────────────────────
+
+  // ── Live presence (profile page) ──────────────────────────
+  async function initProfilePresence() {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return;
+
+      const { data } = await db
+        .from('presence')
+        .select('sharing, city, flag')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (data) {
+        document.getElementById('presenceToggle').checked = data.sharing;
+        if (data.sharing && data.city) {
+          showPresenceCity(data.city, data.flag || '📍');
+        }
+        if (data.sharing) {
+          document.getElementById('presenceDetail').classList.add('show');
+        }
+      }
+    } catch {
+      // Presence table not created yet — that's fine
+    }
+  }
+
+  async function handlePresenceToggle(on) {
+    const detail = document.getElementById('presenceDetail');
+    detail.classList.toggle('show', on);
+
+    if (on) {
+      toast('Detecting your city…');
+      refreshLocation();
+    } else {
+      toast('Location sharing turned off');
+      document.getElementById('ps-city-display').style.display = 'none';
+      await saveProfilePresence(false, null, null, null, null, null);
+    }
+  }
+
+  async function refreshLocation() {
+    if (!navigator.geolocation) {
+      toast('Geolocation not supported');
+      return;
+    }
+    document.getElementById('pdCityText').textContent = 'Detecting…';
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const result = await reverseGeocodeProfile(lat, lng);
+        if (result) {
+          showPresenceCity(result.city, result.flag);
+          await saveProfilePresence(true, result.city, result.country, result.flag, lat, lng);
+          toast('Location updated: ' + result.city + ' ' + result.flag);
+        }
+      },
+      (err) => {
+        document.getElementById('pdCityText').textContent = 'Permission denied';
+        if (err.code === 1) toast('Allow location access in your browser settings');
+      },
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }
+
+  function showPresenceCity(city, flag) {
+    document.getElementById('pdCityText').textContent = 'Currently in ' + city + ' ' + (flag || '');
+    const cityDisplay = document.getElementById('ps-city-display');
+    cityDisplay.textContent = '● ' + city;
+    cityDisplay.style.display = 'block';
+  }
+
+  async function reverseGeocodeProfile(lat, lng) {
+    try {
+      const res = await fetch(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=10',
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.county || 'Unknown';
+      const country = addr.country || '';
+      const code = (addr.country_code || '').toUpperCase();
+      const flag = code.length === 2
+        ? String.fromCodePoint(...[...code].map(ch => 0x1F1E0 + ch.charCodeAt(0) - 65))
+        : '🌍';
+      return { city, country, flag };
+    } catch { return null; }
+  }
+
+  async function saveProfilePresence(sharing, city, country, flag, lat, lng) {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return;
+      await db.from('presence').upsert({
+        user_id: session.user.id,
+        sharing, city, country, flag, lat, lng,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    } catch (e) {
+      console.warn('Presence not saved:', e.message);
+    }
+  }
+
+  async function init() {
+    const { data:{ session } } = await db.auth.getSession();
+    if (session) {
+      const meta = session.user.user_metadata || {};
+      profile.first    = meta.first_name || session.user.email.split('@')[0];
+      profile.last     = meta.last_name  || '';
+      profile.username = meta.username   || session.user.email.split('@')[0];
+      profile.bio      = meta.bio        || 'Frequent traveler. Always looking for the next overlap.';
+      profile.city     = meta.home_city  || 'New York, NY';
+      profile.freq     = meta.travel_frequency || 'Monthly traveler';
+      profile.tags     = meta.tags       || 'Food-first, City explorer, Night owl';
+      renderProfile();
+
+      // Load real trip count
+      try {
+        const { data } = await db.from('trips').select('id').eq('user_id', session.user.id);
+        if (data) document.getElementById('statTrips').textContent = data.length;
+      } catch {}
+    }
+    startCountdown();
+  }
+
+  function renderProfile() {
+    const fullName = [profile.first, profile.last].filter(Boolean).join(' ') || 'Your Name';
+    const initial  = (profile.first || '?')[0].toUpperCase();
+
+    document.getElementById('profileAv').textContent    = initial;
+    document.getElementById('sidebarAvatar').textContent = initial;
+    document.getElementById('sidebarName').textContent   = profile.first || 'Traveler';
+    document.getElementById('profileName').textContent   = fullName;
+    document.getElementById('profileHandle').textContent = '@' + (profile.username || 'handle');
+    document.getElementById('profileBio').textContent    = profile.bio;
+    document.getElementById('profileCity').textContent   = profile.city;
+    document.getElementById('profileFreq').textContent   = profile.freq;
+    document.getElementById('shareCardName').textContent = fullName;
+    document.getElementById('shareHandle').textContent   = profile.username || 'handle';
+  }
+
+  // ── Countdown to next trip ────────────────────────────────
+  function startCountdown() {
+    const target = new Date('2025-04-02T00:00:00');
+    function update() {
+      const now  = new Date();
+      const diff = target - now;
+      if (diff <= 0) {
+        document.getElementById('cdDays').textContent  = '0';
+        document.getElementById('cdHours').textContent = '0';
+        document.getElementById('cdMins').textContent  = '0';
+        return;
+      }
+      document.getElementById('cdDays').textContent  = Math.floor(diff / 86400000);
+      document.getElementById('cdHours').textContent = Math.floor((diff % 86400000) / 3600000);
+      document.getElementById('cdMins').textContent  = Math.floor((diff % 3600000) / 60000);
+    }
+    update();
+    setInterval(update, 30000);
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tbar-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+tab).classList.add('active');
+  }
+
+  // ── Edit modal ────────────────────────────────────────────
+  function openEditModal() {
+    document.getElementById('edit-first').value    = profile.first;
+    document.getElementById('edit-last').value     = profile.last;
+    document.getElementById('edit-username').value = profile.username;
+    document.getElementById('edit-bio').value      = profile.bio;
+    document.getElementById('edit-city').value     = profile.city;
+    document.getElementById('edit-freq').value     = profile.freq;
+    document.getElementById('edit-tags').value     = profile.tags;
+    document.getElementById('editModal').classList.add('open');
+  }
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('open');
+  }
+
+  async function saveProfile() {
+    profile.first    = document.getElementById('edit-first').value.trim()    || profile.first;
+    profile.last     = document.getElementById('edit-last').value.trim()     || profile.last;
+    profile.username = document.getElementById('edit-username').value.trim() || profile.username;
+    profile.bio      = document.getElementById('edit-bio').value.trim()      || profile.bio;
+    profile.city     = document.getElementById('edit-city').value.trim()     || profile.city;
+    profile.freq     = document.getElementById('edit-freq').value.trim()     || profile.freq;
+    profile.tags     = document.getElementById('edit-tags').value.trim()     || profile.tags;
+
+    // Save to Supabase user metadata
+    try {
+      await db.auth.updateUser({ data: {
+        first_name: profile.first, last_name: profile.last,
+        username: profile.username, bio: profile.bio,
+        home_city: profile.city, travel_frequency: profile.freq, tags: profile.tags
+      }});
+    } catch (e) { console.error(e); }
+
+    renderProfile();
+    closeEditModal();
+    toast('Profile updated! ✈');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.querySelectorAll('a,button,input,textarea,.tl-item,.city-bubble,.ol-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)'; });
+    el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+  init();
+</script>
+<nav class="mob-nav"><div class="mob-nav-inner">
+    <a href="layover-dashboard.html" class="mob-tab"><span class="mt-icon">🏠</span>Home</a>
+    <a href="layover-explore.html" class="mob-tab"><span class="mt-icon">🌍</span>Explore</a>
+    <a href="layover-messages.html" class="mob-tab"><span class="mt-icon">💬</span>Messages</a>
+    <a href="layover-friends.html" class="mob-tab"><span class="mt-icon">👥</span>Friends</a>
+    <a href="layover-profile.html" class="mob-tab active"><span class="mt-icon">👤</span>Profile</a>
+  </div></nav>
+<script>
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+</script>
+</body>
+</html>

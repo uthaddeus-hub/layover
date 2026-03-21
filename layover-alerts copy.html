@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Alerts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a; --sidebar: 220px;
+    }
+    html, body { height: var(--app-height, 100vh); }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+    .cursor { position: fixed; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+    .cursor-ring { position: fixed; width: 26px; height: 26px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.15s ease; }
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height, 100vh); }
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
+    main { overflow-y: auto; display: flex; flex-direction: column; height: var(--app-height, 100vh); }
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* TOPBAR */
+    .topbar { padding: 20px 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10; }
+    .topbar-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; }
+    .topbar-left h1 em { font-style: italic; color: var(--gold); }
+    .topbar-left p { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; margin-top: 3px; }
+    .mark-all { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 9px 16px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .mark-all:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+
+    /* FILTER TABS */
+    .filter-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 36px; background: var(--deep); flex-shrink: 0; }
+    .ftab { padding: 13px 0; margin-right: 28px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-bottom: -1px; display: flex; align-items: center; gap: 6px; }
+    .ftab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .ftab:hover:not(.active) { color: var(--cream); }
+    .ftab-count { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(201,168,76,0.2); font-size: 9px; padding: 1px 7px; }
+    .ftab-count.red { background: rgba(224,122,122,0.1); color: var(--red); border-color: rgba(224,122,122,0.2); }
+
+    /* CONTENT */
+    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 320px; gap: 28px; }
+
+    /* NOTIFICATION LIST */
+    .notif-list { display: flex; flex-direction: column; gap: 1px; }
+    .notif-item {
+      background: var(--card); border: 1px solid var(--border);
+      padding: 20px 22px; display: flex; gap: 16px; align-items: flex-start;
+      cursor: none; transition: all 0.2s; position: relative;
+    }
+    .notif-item.unread { background: var(--card2); border-color: rgba(201,168,76,0.12); }
+    .notif-item.unread::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--gold); }
+    .notif-item:hover { background: var(--card2); }
+
+    .notif-icon-wrap { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .notif-icon-wrap.overlap { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); }
+    .notif-icon-wrap.friend  { background: rgba(122,174,224,0.08); border: 1px solid rgba(122,174,224,0.18); }
+    .notif-icon-wrap.tip     { background: rgba(122,224,168,0.07); border: 1px solid rgba(122,224,168,0.18); }
+    .notif-icon-wrap.trip    { background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.12); }
+
+    .notif-body { flex: 1; }
+    .notif-title { font-size: 13px; color: var(--cream); margin-bottom: 5px; line-height: 1.5; }
+    .notif-title strong { color: var(--cream); }
+    .notif-title em { font-style: normal; color: var(--gold); }
+    .notif-meta { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; margin-bottom: 12px; }
+    .notif-actions { display: flex; gap: 8px; }
+    .na-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .na-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.18); }
+    .na-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .na-btn.gold:hover { background: var(--gold-dim); }
+    .unread-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+
+    /* OVERLAP HIGHLIGHT CARD */
+    .overlap-highlight {
+      background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25);
+      padding: 24px; margin-bottom: 20px;
+    }
+    .oh-label { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .oh-label::before { content: ''; width: 16px; height: 1px; background: var(--gold); display: block; }
+    .oh-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; margin-bottom: 6px; }
+    .oh-sub { font-size: 11px; color: var(--muted); line-height: 1.7; letter-spacing: 0.04em; margin-bottom: 16px; }
+    .oh-people { display: flex; gap: -6px; margin-bottom: 14px; }
+    .oh-av { width: 32px; height: 32px; border-radius: 50%; background: var(--night); border: 2px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); margin-right: -8px; }
+    .oh-people-text { font-size: 11px; color: var(--muted); margin-left: 20px; align-self: center; }
+    .oh-btn { width: 100%; background: var(--gold); border: none; padding: 12px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; }
+    .oh-btn:hover { background: var(--gold-light); }
+
+    /* STATS WIDGET */
+    .stat-widget { background: var(--card); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .sw-title { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .sw-title::before { content: ''; width: 16px; height: 1px; background: var(--gold); display: block; }
+    .sw-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border2); }
+    .sw-row:last-child { border-bottom: none; }
+    .sw-label { font-size: 11px; color: var(--muted); }
+    .sw-val { font-size: 11px; color: var(--cream); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    /* MOBILE */
+    .mob-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--deep); border-top: 1px solid var(--border); z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; cursor: pointer; transition: color 0.2s; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      main { padding-bottom: 70px; }
+      .content { grid-template-columns: 1fr !important; padding: 16px; }
+      .topbar { padding: 14px 16px; }
+      .filter-tabs { padding: 0 16px; }
+      .cursor, .cursor-ring { display: none; }
+    }
+
+    .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.4s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* LOADING STATES */
+    .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
+  </style>
+</head>
+<body>
+<!-- PAGE LOADING SCREEN -->
+<div class="page-loading" id="pageLoader">
+  <div class="pl-logo">LAY<span>◆</span>VER</div>
+  <div class="pl-bar"></div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-messages.html" class="nav-item"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="#" class="nav-item active"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast('Settings coming soon!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">…</div>
+          <div class="user-status">● Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Your <em>alerts.</em></h1>
+        <p id="unreadCount">5 unread notifications</p>
+      </div>
+      <button class="mark-all" onclick="markAllRead()">Mark all read</button>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="ftab active" onclick="filterTab(this,'all')">All <span class="ftab-count" id="tabAll">5</span></button>
+      <button class="ftab" onclick="filterTab(this,'overlaps')">Overlaps <span class="ftab-count red" id="tabOverlaps">2</span></button>
+      <button class="ftab" onclick="filterTab(this,'friends')">Friends <span class="ftab-count" id="tabFriends">2</span></button>
+      <button class="ftab" onclick="filterTab(this,'tips')">Tips <span class="ftab-count" id="tabTips">1</span></button>
+    </div>
+
+    <div class="content fade-up">
+      <!-- LEFT: notifications -->
+      <div>
+        <div class="notif-list" id="notifList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- RIGHT: sidebar -->
+      <div>
+        <!-- Top overlap highlight -->
+        <div class="overlap-highlight">
+          <div class="oh-label">Hot overlap</div>
+          <div class="oh-title">You + Alex are both in Newark</div>
+          <div class="oh-sub">You overlap for <strong style="color:var(--gold)">4 days</strong> starting March 14. Alex arrives the same day you do.</div>
+          <div style="display:flex;align-items:center;margin-bottom:14px">
+            <div class="oh-people">
+              <div class="oh-av">Y</div>
+              <div class="oh-av">A</div>
+            </div>
+            <span class="oh-people-text" style="margin-left:20px">You & Alex Chen</span>
+          </div>
+          <button class="oh-btn" onclick="toast('Opening Newark trip! ✈')">View Overlap →</button>
+        </div>
+
+        <!-- Notification stats -->
+        <div class="stat-widget">
+          <div class="sw-title">This month</div>
+          <div class="sw-row"><div class="sw-label">Overlaps detected</div><div class="sw-val" style="color:var(--gold)">6</div></div>
+          <div class="sw-row"><div class="sw-label">Cities covered</div><div class="sw-val">4</div></div>
+          <div class="sw-row"><div class="sw-label">Friends active</div><div class="sw-val">3</div></div>
+          <div class="sw-row"><div class="sw-label">Tips received</div><div class="sw-val">8</div></div>
+        </div>
+
+        <!-- Settings quick access -->
+        <div class="stat-widget">
+          <div class="sw-title">Notification settings</div>
+          <div class="sw-row"><div class="sw-label">Overlap alerts</div><div class="sw-val" style="color:var(--green)">On</div></div>
+          <div class="sw-row"><div class="sw-label">Friend requests</div><div class="sw-val" style="color:var(--green)">On</div></div>
+          <div class="sw-row"><div class="sw-label">New tips</div><div class="sw-val" style="color:var(--green)">On</div></div>
+          <div class="sw-row"><div class="sw-label">Trip reminders</div><div class="sw-val" style="color:var(--muted)">3 days before</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav">
+  <div class="mob-nav-inner">
+    <a href="layover-dashboard.html" class="mob-tab"><span class="mt-icon">🏠</span>Home</a>
+    <a href="layover-explore.html" class="mob-tab"><span class="mt-icon">🌍</span>Explore</a>
+    <a href="layover-messages.html" class="mob-tab"><span class="mt-icon">💬</span>Messages</a>
+    <a href="layover-friends.html" class="mob-tab"><span class="mt-icon">👥</span>Friends</a>
+    <a href="layover-profile.html" class="mob-tab"><span class="mt-icon">👤</span>Profile</a>
+  </div>
+</nav>
+
+<div class="toast" id="toastEl"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  const NOTIFS = [
+    {
+      id:1, type:'overlap', unread:true,
+      icon:'⚡', iconClass:'overlap',
+      title:'<strong>Alex Chen</strong> is in <em>Newark</em> at the same time as you',
+      meta:'March 14–18 · 4-day overlap · Added 2 min ago',
+      actions:[{label:'View Overlap', gold:true, fn:"toast('Opening shared itinerary! ✈')"},{label:'Message Alex', fn:"window.location.href='layover-messages.html'"}]
+    },
+    {
+      id:2, type:'overlaps', unread:true,
+      icon:'⚡', iconClass:'overlap',
+      title:'<strong>Thad Williams</strong> booked a trip to <em>Newark</em> — you overlap for 2 days',
+      meta:'March 15–17 · Thad arrives one day after you · Added 14 min ago',
+      actions:[{label:'See Overlap', gold:true, fn:"toast('Opening Newark trip!')"},{label:'Message Thad', fn:"window.location.href='layover-messages.html'"}]
+    },
+    {
+      id:3, type:'friends', unread:true,
+      icon:'👥', iconClass:'friend',
+      title:'<strong>Priya Nair</strong> sent you a friend request',
+      meta:'2 mutual friends · Lisbon, Portugal · Added 1 hr ago',
+      actions:[{label:'Accept', gold:true, fn:"acceptFriend(3)"},{label:'Decline', fn:"declineFriend(3)"}]
+    },
+    {
+      id:4, type:'tips', unread:true,
+      icon:'⭐', iconClass:'tip',
+      title:'<strong>Julia Santos</strong> left a tip for <em>London</em> you're visiting',
+      meta:'"Borough Market on Saturday morning. Get there early." · Added 3 hr ago',
+      actions:[{label:'View Tip', gold:true, fn:"window.location.href='layover-explore.html'"},{label:'Save', fn:"toast('Tip saved! ⭐')"}]
+    },
+    {
+      id:5, type:'friends', unread:true,
+      icon:'✈️', iconClass:'trip',
+      title:'<strong>Marcus Lee</strong> added a trip to <em>Austin</em>',
+      meta:'No overlap with your trips · March 3–8 · Added Yesterday',
+      actions:[{label:'View Trip', gold:false, fn:"toast('Viewing Marcus trip!')"},{label:'Message', fn:"window.location.href='layover-messages.html'"}]
+    },
+    {
+      id:6, type:'overlaps', unread:false,
+      icon:'⚡', iconClass:'overlap',
+      title:'You overlapped with <strong>Julia Santos</strong> in <em>London</em> last April',
+      meta:'April 2–3 · 1-day overlap · 2 weeks ago',
+      actions:[{label:'See Memories', gold:false, fn:"toast('Opening trip memories!')"}]
+    },
+  ];
+
+  let activeFilter = 'all';
+  let notifState = NOTIFS.map(n => ({...n}));
+
+  function renderNotifs() {
+    const list = document.getElementById('notifList');
+    const filtered = activeFilter === 'all'
+      ? notifState
+      : notifState.filter(n => n.type === activeFilter || (activeFilter === 'overlaps' && n.type === 'overlap'));
+
+    list.innerHTML = filtered.map(n => `
+      <div class="notif-item ${n.unread ? 'unread' : ''}" id="notif-${n.id}">
+        <div class="notif-icon-wrap ${n.iconClass}">${n.icon}</div>
+        <div class="notif-body">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-meta">${n.meta}</div>
+          <div class="notif-actions">
+            ${n.actions.map(a => `<button class="na-btn ${a.gold?'gold':''}" onclick="${a.fn}">${a.label}</button>`).join('')}
+          </div>
+        </div>
+        ${n.unread ? '<div class="unread-dot"></div>' : ''}
+      </div>
+    `).join('');
+
+    const unreadCount = notifState.filter(n => n.unread).length;
+    document.getElementById('unreadCount').textContent =
+      unreadCount > 0 ? `${unreadCount} unread notification${unreadCount>1?'s':''}` : 'All caught up ✓';
+  }
+
+  function filterTab(btn, filter) {
+    document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = filter;
+    renderNotifs();
+  }
+
+  function markAllRead() {
+    notifState.forEach(n => n.unread = false);
+    renderNotifs();
+    toast('All notifications marked as read');
+  }
+
+  function acceptFriend(id) {
+    const n = notifState.find(x => x.id === id);
+    if (n) {
+      n.unread = false;
+      n.actions = [{label:'Friends now ✓', gold:false, fn:"toast('Already friends!')"}];
+      n.title = n.title.replace('sent you a friend request', 'is now your friend');
+    }
+    renderNotifs();
+    toast('Friend request accepted! 👥');
+  }
+
+  function declineFriend(id) {
+    notifState = notifState.filter(n => n.id !== id);
+    renderNotifs();
+    toast('Request declined');
+  }
+
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      const meta = session.user.user_metadata || {};
+      const name = meta.first_name || session.user.email.split('@')[0];
+      document.getElementById('sidebarName').textContent = name;
+      document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+    }
+    renderNotifs();
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.querySelectorAll('a,button').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width='36px'; ring.style.height='36px'; ring.style.borderColor='rgba(201,168,76,0.55)'; });
+    el.addEventListener('mouseleave', () => { ring.style.width='26px'; ring.style.height='26px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+  init();
+
+  // Page load transition
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('done');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 400);
+  });
+
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+</script>
+</body>
+</html>

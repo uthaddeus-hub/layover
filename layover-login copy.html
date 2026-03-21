@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Sign In</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #000; --card: #111; --card2: #181818;
+      --border: rgba(255,255,255,0.08);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.1);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.48); --dim: rgba(240,232,216,0.2);
+      --error: #e07a7a; --success: #7ae0a8;
+    }
+    html, body { height: var(--app-height, 100vh); }
+    body { background: var(--black); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; display: flex; align-items: center; justify-content: center; min-height: var(--app-height, 100vh); padding: 24px; overflow-y: auto; }
+    .cursor { position: fixed; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+    .cursor-ring { position: fixed; width: 26px; height: 26px; border: 1px solid rgba(201,168,76,0.35); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.15s ease; }
+
+    /* CARD */
+    .auth-card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--border); padding: 48px 44px; animation: cardIn 0.5s ease forwards; }
+    @keyframes cardIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+
+    .card-logo { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 300; letter-spacing: 0.24em; text-align: center; margin-bottom: 32px; text-decoration: none; color: var(--cream); display: block; }
+    .card-logo span { color: var(--gold); }
+
+    /* TABS */
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+    .tab { padding: 12px 0; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-bottom: -1px; }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab:hover:not(.active) { color: var(--cream); }
+
+    /* PANELS */
+    .panel { display: none; }
+    .panel.active { display: block; animation: panelIn 0.3s ease; }
+    @keyframes panelIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+    .panel-title { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; margin-bottom: 6px; }
+    .panel-title em { font-style: italic; color: var(--gold); }
+    .panel-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 28px; line-height: 1.6; }
+
+    /* FIELDS */
+    .form-group { margin-bottom: 14px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    label { display: block; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .field { width: 100%; background: var(--black); border: 1px solid var(--border); outline: none; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .field:focus { border-color: rgba(201,168,76,0.5); }
+    .field::placeholder { color: var(--dim); }
+    .pw-wrap { position: relative; }
+    .pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 13px; color: var(--dim); cursor: none; padding: 0; transition: color 0.2s; }
+    .pw-eye:hover { color: var(--muted); }
+
+    /* SUBMIT */
+    .submit-btn { width: 100%; background: var(--gold); border: none; padding: 14px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--black); cursor: none; transition: all 0.2s; margin-top: 4px; }
+    .submit-btn:hover:not(:disabled) { background: var(--gold-light); }
+    .submit-btn:disabled { opacity: 0.6; }
+
+    /* MESSAGES */
+    .msg { font-size: 11px; letter-spacing: 0.04em; margin-top: 12px; min-height: 18px; text-align: center; line-height: 1.6; }
+
+    /* FORGOT */
+    .forgot-link { display: block; font-size: 10px; color: var(--dim); text-align: right; margin-top: 8px; cursor: none; background: none; border: none; font-family: 'DM Mono', monospace; letter-spacing: 0.06em; transition: color 0.2s; width: 100%; text-align: right; }
+    .forgot-link:hover { color: var(--muted); }
+
+    /* DIVIDER */
+    .divider { display: flex; align-items: center; gap: 14px; margin: 22px 0; }
+    .divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+    .divider span { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
+
+    /* BACK LINK */
+    .back-link { display: block; text-align: center; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-decoration: none; margin-top: 24px; cursor: none; transition: color 0.2s; }
+    .back-link:hover { color: var(--muted); }
+
+    /* SUCCESS */
+    .success-state { display: none; text-align: center; padding: 16px 0; }
+    .success-icon { font-size: 40px; margin-bottom: 14px; }
+    .success-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; margin-bottom: 8px; }
+    .success-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; line-height: 1.7; }
+
+    /* RESET PANEL */
+    #resetPanel { display: none; }
+    #resetPanel.show { display: block; animation: panelIn 0.3s ease; }
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="auth-card">
+  <a href="layover-landing.html" class="card-logo">LAY<span>◆</span>VER</a>
+
+  <!-- TABS -->
+  <div class="tabs" id="tabBar">
+    <button class="tab active" onclick="switchTab('signin',this)">Sign In</button>
+    <button class="tab" onclick="switchTab('signup',this)">Create Account</button>
+  </div>
+
+  <!-- ── SIGN IN PANEL ── -->
+  <div class="panel active" id="panel-signin">
+    <div id="signinForm">
+      <div class="panel-title">Welcome <em>back.</em></div>
+      <div class="panel-sub">Sign in to see where your friends are.</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="field" type="email" id="li-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doSignin()"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input class="field" type="password" id="li-pw" placeholder="Your password" onkeydown="if(event.key==='Enter')doSignin()"/>
+          <button class="pw-eye" onclick="togglePw('li-pw')">👁</button>
+        </div>
+        <button class="forgot-link" onclick="showReset()">Forgot password?</button>
+      </div>
+      <button class="submit-btn" id="li-btn" onclick="doSignin()">Sign In →</button>
+      <div class="msg" id="li-msg"></div>
+      <div class="divider"><span>or</span></div>
+      <div style="font-size:10px;color:var(--dim);text-align:center;letter-spacing:0.06em">
+        No account? <span style="color:var(--gold);cursor:pointer" onclick="switchTab('signup',document.querySelectorAll('.tab')[1])">Create one free →</span>
+      </div>
+    </div>
+    <div class="success-state" id="signinSuccess">
+      <div class="success-icon">✈️</div>
+      <div class="success-title">Welcome back.</div>
+      <div class="success-sub">Taking you to your dashboard…</div>
+    </div>
+  </div>
+
+  <!-- ── SIGN UP PANEL ── -->
+  <div class="panel" id="panel-signup">
+    <div id="signupForm">
+      <div class="panel-title">Join <em>Layover.</em></div>
+      <div class="panel-sub">Free forever. See where your friends are traveling.</div>
+      <div class="form-row">
+        <div><label>First Name</label><input class="field" type="text" id="su-first" placeholder="Alex"/></div>
+        <div><label>Last Name</label><input class="field" type="text" id="su-last" placeholder="Kim"/></div>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="field" type="email" id="su-email" placeholder="alex@email.com" onkeydown="if(event.key==='Enter')doSignup()"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input class="field" type="password" id="su-pw" placeholder="Min. 6 characters" onkeydown="if(event.key==='Enter')doSignup()"/>
+          <button class="pw-eye" onclick="togglePw('su-pw')">👁</button>
+        </div>
+      </div>
+      <button class="submit-btn" id="su-btn" onclick="doSignup()">Create Account →</button>
+      <div class="msg" id="su-msg"></div>
+      <div class="divider"><span>or</span></div>
+      <div style="font-size:10px;color:var(--dim);text-align:center;letter-spacing:0.06em">
+        Already have an account? <span style="color:var(--gold);cursor:pointer" onclick="switchTab('signin',document.querySelectorAll('.tab')[0])">Sign in →</span>
+      </div>
+    </div>
+    <div class="success-state" id="signupSuccess">
+      <div class="success-icon">✈️</div>
+      <div class="success-title">You're cleared for takeoff.</div>
+      <div class="success-sub">Welcome, <strong id="su-welcome"></strong>.<br>Taking you to your dashboard…</div>
+    </div>
+  </div>
+
+  <!-- ── RESET PASSWORD PANEL ── -->
+  <div id="resetPanel">
+    <div class="panel-title">Reset <em>password.</em></div>
+    <div class="panel-sub">Enter your email and we'll send you a reset link.</div>
+    <div class="form-group">
+      <label>Email</label>
+      <input class="field" type="email" id="reset-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doReset()"/>
+    </div>
+    <button class="submit-btn" id="reset-btn" onclick="doReset()">Send Reset Email →</button>
+    <div class="msg" id="reset-msg"></div>
+    <button class="back-link" onclick="hideReset()">← Back to sign in</button>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  // Redirect if already logged in
+  db.auth.getSession().then(({ data: { session } }) => {
+    if (session) window.location.href = 'layover-dashboard.html';
+  });
+
+  // ── Tab switching ──────────────────────────────────────────
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    hideReset();
+  }
+
+  // ── Password toggle ────────────────────────────────────────
+  function togglePw(id) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+  }
+
+  // ── Sign in ────────────────────────────────────────────────
+  async function doSignin() {
+    const email = document.getElementById('li-email').value.trim();
+    const pw    = document.getElementById('li-pw').value;
+    const msg   = document.getElementById('li-msg');
+    const btn   = document.getElementById('li-btn');
+
+    msg.style.color = 'var(--error)';
+    if (!email) { msg.textContent = 'Please enter your email.'; return; }
+    if (!pw)    { msg.textContent = 'Please enter your password.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    msg.textContent = '';
+
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
+
+    if (error) {
+      msg.textContent = error.message.includes('Invalid') ? 'Incorrect email or password.' : error.message;
+      btn.disabled = false;
+      btn.textContent = 'Sign In →';
+      return;
+    }
+
+    document.getElementById('signinForm').style.display = 'none';
+    document.getElementById('signinSuccess').style.display = 'block';
+    setTimeout(() => { window.location.href = 'layover-dashboard.html'; }, 1200);
+  }
+
+  // ── Sign up ────────────────────────────────────────────────
+  async function doSignup() {
+    const first = document.getElementById('su-first').value.trim();
+    const last  = document.getElementById('su-last').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const pw    = document.getElementById('su-pw').value;
+    const msg   = document.getElementById('su-msg');
+    const btn   = document.getElementById('su-btn');
+
+    msg.style.color = 'var(--error)';
+    if (!first)                         { msg.textContent = 'Please enter your first name.'; return; }
+    if (!email || !email.includes('@')) { msg.textContent = 'Please enter a valid email.'; return; }
+    if (pw.length < 6)                  { msg.textContent = 'Password must be at least 6 characters.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+    msg.textContent = '';
+
+    const { data, error } = await db.auth.signUp({
+      email, password: pw,
+      options: { data: { first_name: first, last_name: last, username: email.split('@')[0] } }
+    });
+
+    if (error) {
+      msg.textContent = error.message.includes('already registered')
+        ? 'Email already registered. Sign in instead.'
+        : error.message;
+      btn.disabled = false;
+      btn.textContent = 'Create Account →';
+      return;
+    }
+
+    document.getElementById('signupForm').style.display = 'none';
+    const success = document.getElementById('signupSuccess');
+    success.style.display = 'block';
+    document.getElementById('su-welcome').textContent = first;
+
+    if (data.session) {
+      setTimeout(() => { window.location.href = 'layover-dashboard.html'; }, 1600);
+    }
+  }
+
+  // ── Reset password ─────────────────────────────────────────
+  function showReset() {
+    document.getElementById('tabBar').style.display = 'none';
+    document.getElementById('panel-signin').classList.remove('active');
+    document.getElementById('resetPanel').classList.add('show');
+  }
+  function hideReset() {
+    document.getElementById('tabBar').style.display = 'grid';
+    document.getElementById('resetPanel').classList.remove('show');
+    document.getElementById('panel-signin').classList.add('active');
+  }
+  async function doReset() {
+    const email = document.getElementById('reset-email').value.trim();
+    const msg   = document.getElementById('reset-msg');
+    const btn   = document.getElementById('reset-btn');
+
+    msg.style.color = 'var(--error)';
+    if (!email) { msg.textContent = 'Please enter your email.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    const { error } = await db.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/layover-login.html'
+    });
+
+    if (error) {
+      msg.textContent = error.message;
+      btn.disabled = false;
+      btn.textContent = 'Send Reset Email →';
+      return;
+    }
+
+    msg.style.color = 'var(--success)';
+    msg.textContent = '✓ Reset email sent — check your inbox.';
+    btn.textContent = 'Email Sent';
+  }
+
+  // ── Cursor ─────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){
+    cur.style.left=mx+'px'; cur.style.top=my+'px';
+    rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12;
+    ring.style.left=rx+'px'; ring.style.top=ry+'px';
+    requestAnimationFrame(tick);
+  })();
+  document.querySelectorAll('a,button,input').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{ring.style.width='36px';ring.style.height='36px';ring.style.borderColor='rgba(201,168,76,0.55)';});
+    el.addEventListener('mouseleave',()=>{ring.style.width='26px';ring.style.height='26px';ring.style.borderColor='rgba(201,168,76,0.35)';});
+  });
+
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+</script>
+</body>
+</html>
