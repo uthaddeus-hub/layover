@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Layover — Profile</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -16,13 +16,13 @@
       --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
       --sidebar: 220px;
     }
-    html, body { height: 100%; }
+    html, body { height: var(--app-height, 100vh); }
     body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
 
     .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
     .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
 
-    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100vh; }
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height, 100vh); }
 
     /* SIDEBAR */
     aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -286,9 +286,85 @@
       .avatar-actions { flex-wrap: wrap; }
       .content { padding: 16px; }
     }
+
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+    .mob-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--deep); border-top: 1px solid var(--border); z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; transition: color 0.2s; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block !important; }
+      .shell { grid-template-columns: 1fr !important; }
+      main { padding-bottom: 70px; height: var(--app-height, 100vh); }
+      .cursor, .cursor-ring { display: none; }
+    }
+
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
   </style>
 </head>
 <body>
+<div class="page-loading" id="pageLoader"><div class="pl-logo">LAY<span>◆</span>VER</div><div class="pl-bar"></div></div>
 
 <div class="cursor" id="cursor"></div>
 <div class="cursor-ring" id="cursorRing"></div>
@@ -304,14 +380,13 @@
     </div>
     <div class="nav-section">
       <div class="nav-label">Social</div>
-      <a href="layover-messages.html" class="nav-item"><span class="nav-icon">💬</span> Messages <span class="nav-badge">3</span></a>
-      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
-      <a href="#" class="nav-item" onclick="toast&&toast('Alerts coming soon!')||showToast&&showToast('Alerts coming soon!')"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
+            <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-alerts.html" class="nav-item"><span class="nav-icon">🔔</span> Alerts <span class="nav-badge">5</span></a>
     </div>
     <div class="nav-section">
       <div class="nav-label">Account</div>
       <a href="layover-profile.html" class="nav-item active"><span class="nav-icon">👤</span> Profile</a>
-      <a href="#" class="nav-item" onclick="toast&&toast('Settings coming soon!')||showToast&&showToast('Settings coming soon!')"><span class="nav-icon">⚙️</span> Settings</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
     </div>
     
     <div class="sidebar-footer">
@@ -915,6 +990,22 @@
   });
 
   init();
+</script>
+<nav class="mob-nav"><div class="mob-nav-inner">
+      <a href="layover-dashboard.html" class="mob-tab"><span class="mt-icon">🏠</span>Home</a>
+      <a href="layover-explore.html" class="mob-tab"><span class="mt-icon">🌍</span>Explore</a>
+      <a href="layover-friends.html" class="mob-tab"><span class="mt-icon">👥</span>Friends</a>
+      <a href="layover-alerts.html" class="mob-tab"><span class="mt-icon">🔔</span>Alerts</a>
+      <a href="layover-profile.html" class="mob-tab active"><span class="mt-icon">👤</span>Profile</a>
+      </div></nav>
+<script>
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
 </script>
 </body>
 </html>
