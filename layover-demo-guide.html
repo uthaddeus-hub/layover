@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layover — Investor Demo Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #000; --card: #111; --border: rgba(255,255,255,0.08);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.12);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.5); --dim: rgba(240,232,216,0.2);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
+    }
+    body { background: var(--black); color: var(--cream); font-family: "DM Mono", monospace; font-weight: 300; padding: 60px 0 100px; }
+    .page { max-width: 780px; margin: 0 auto; padding: 0 32px; }
+
+    .header { text-align: center; margin-bottom: 64px; }
+    .logo { font-family: "Cormorant Garamond", serif; font-size: 18px; letter-spacing: 0.22em; color: var(--muted); margin-bottom: 24px; }
+    .logo span { color: var(--gold); }
+    .title { font-family: "Cormorant Garamond", serif; font-size: 48px; font-weight: 300; line-height: 1.1; margin-bottom: 14px; }
+    .title em { font-style: italic; color: var(--gold); }
+    .subtitle { font-size: 12px; color: var(--muted); letter-spacing: 0.08em; line-height: 1.8; }
+
+    /* DEMO CREDENTIALS */
+    .cred-box { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); padding: 28px 32px; margin-bottom: 48px; text-align: center; }
+    .cred-label { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; }
+    .cred-row { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; }
+    .cred-item { }
+    .cred-key { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 5px; }
+    .cred-val { font-size: 16px; color: var(--cream); letter-spacing: 0.06em; }
+    .cred-copy { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); background: none; border: 1px solid rgba(201,168,76,0.3); padding: 4px 12px; cursor: pointer; font-family: "DM Mono", monospace; margin-left: 8px; transition: all 0.2s; }
+    .cred-copy:hover { background: var(--gold-dim); }
+
+    /* FLOW STEPS */
+    .flow-label { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+    .flow-label::before { content: ""; width: 20px; height: 1px; background: var(--gold); display: block; }
+
+    .flow { display: flex; flex-direction: column; gap: 1px; margin-bottom: 52px; }
+    .flow-step { display: grid; grid-template-columns: 52px 1fr; gap: 0; background: var(--border); }
+    .step-num-wrap { background: var(--black); display: flex; align-items: flex-start; justify-content: center; padding-top: 24px; }
+    .step-num { width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-family: "Cormorant Garamond", serif; font-size: 15px; color: var(--gold); }
+    .step-body { background: var(--card); padding: 20px 24px; }
+    .step-action { font-size: 13px; color: var(--cream); margin-bottom: 5px; letter-spacing: 0.03em; }
+    .step-action strong { color: var(--gold); }
+    .step-detail { font-size: 11px; color: var(--muted); line-height: 1.7; letter-spacing: 0.03em; }
+    .step-tag { display: inline-block; font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 9px; margin-top: 8px; }
+    .step-tag.wow { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.2); color: var(--green); }
+    .step-tag.key { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+
+    /* TALKING POINTS */
+    .tp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 52px; }
+    .tp-card { background: var(--card); padding: 24px; }
+    .tp-icon { font-size: 22px; margin-bottom: 10px; }
+    .tp-title { font-size: 12px; color: var(--cream); letter-spacing: 0.06em; margin-bottom: 8px; }
+    .tp-body { font-size: 11px; color: var(--muted); line-height: 1.8; letter-spacing: 0.03em; }
+    .tp-stat { font-family: "Cormorant Garamond", serif; font-size: 32px; font-weight: 300; color: var(--gold); line-height: 1; margin-bottom: 4px; }
+
+    /* WHAT'S REAL */
+    .status-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 52px; }
+    .status-row { display: flex; align-items: center; gap: 14px; background: var(--card); padding: 14px 20px; font-size: 11px; }
+    .s-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .s-dot.real { background: var(--green); }
+    .s-dot.demo { background: var(--gold); }
+    .s-dot.soon { background: var(--dim); }
+    .s-text { flex: 1; color: var(--muted); }
+    .s-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; flex-shrink: 0; }
+    .s-label.real { color: var(--green); }
+    .s-label.demo { color: var(--gold); }
+    .s-label.soon { color: var(--dim); }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+    /* CTA */
+    .cta { text-align: center; padding: 40px 0; }
+    .cta-title { font-family: "Cormorant Garamond", serif; font-size: 36px; font-weight: 300; margin-bottom: 12px; }
+    .cta-title em { font-style: italic; color: var(--gold); }
+    .cta-sub { font-size: 11px; color: var(--muted); margin-bottom: 24px; letter-spacing: 0.06em; }
+    .cta-btn { display: inline-block; background: var(--gold); color: var(--black); padding: 14px 36px; font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; text-decoration: none; transition: all 0.2s; }
+    .cta-btn:hover { background: var(--gold-light); transform: translateY(-2px); }
+
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    @media (max-width: 600px) {
+      .tp-grid { grid-template-columns: 1fr; }
+      .cred-row { gap: 24px; }
+      .title { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="logo">LAY<span>◆</span>VER</div>
+    <div class="title">Investor <em>demo guide.</em></div>
+    <div class="subtitle">Everything you need to run a perfect demo.<br>Total runtime: 3–4 minutes.</div>
+  </div>
+
+  <!-- CREDENTIALS -->
+  <div class="cred-box">
+    <div class="cred-label">Demo Account Credentials</div>
+    <div class="cred-row">
+      <div class="cred-item">
+        <div class="cred-key">Email</div>
+        <div class="cred-val">demo@layover.travel <button class="cred-copy" onclick="copy('demo@layover.travel',this)">Copy</button></div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-key">Password</div>
+        <div class="cred-val">layover2025 <button class="cred-copy" onclick="copy('layover2025',this)">Copy</button></div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-key">Name</div>
+        <div class="cred-val">Alex Rivera</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO FLOW -->
+  <div class="flow-label">The demo flow</div>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">1</div></div>
+      <div class="step-body">
+        <div class="step-action">Open the landing page. Point out the sign-up form.</div>
+        <div class="step-detail">Show the value prop: "See when friends are in the same city." Don't dwell — sign in with the demo account immediately.</div>
+        <div><span class="step-tag key">30 seconds</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">2</div></div>
+      <div class="step-body">
+        <div class="step-action">Dashboard loads with <strong>5 real trips</strong> from the DB.</div>
+        <div class="step-detail">Point to the trip cards — Miami, Tokyo, London. Show the vibe tags and countdown. Say: "Every trip Alex posts is visible to friends they've connected with."</div>
+        <div><span class="step-tag key">45 seconds</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">3</div></div>
+      <div class="step-body">
+        <div class="step-action">Click the <strong>Tokyo trip</strong> → trip detail page.</div>
+        <div class="step-detail">Show the itinerary, friend overlaps panel, and recommendations. This is where the "aha" moment happens — "Two of Alex's friends are also going to Tokyo. Layover caught it automatically."</div>
+        <div><span class="step-tag wow">⚡ Key moment</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">4</div></div>
+      <div class="step-body">
+        <div class="step-action">Navigate to <strong>Alerts</strong> tab.</div>
+        <div class="step-detail">Show the overlap notifications — "Alex Chen is in Newark at the same time as you." This is the core product moment. The app did the work so the user didn't have to.</div>
+        <div><span class="step-tag wow">⚡ Core value prop</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">5</div></div>
+      <div class="step-body">
+        <div class="step-action">Navigate to <strong>Explore</strong> → click Tokyo.</div>
+        <div class="step-detail">Show city page: who's there, friend tips, weather, best time to visit. "This is the social layer on top of travel — your friends' knowledge, organized by city."</div>
+        <div><span class="step-tag key">45 seconds</span></div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num-wrap"><div class="step-num">6</div></div>
+      <div class="step-body">
+        <div class="step-action">Show the <strong>Profile</strong> — live location toggle.</div>
+        <div class="step-detail">Turn on location sharing. Show the green dot and live city detection. "Opt-in. Off by default. When it's on, your friends see your city in real time." Then hand the phone back.</div>
+        <div><span class="step-tag key">30 seconds</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TALKING POINTS -->
+  <div class="flow-label">Key talking points</div>
+  <div class="tp-grid">
+    <div class="tp-card">
+      <div class="tp-stat">$12B</div>
+      <div class="tp-title">Travel social market</div>
+      <div class="tp-body">No one has built the social graph for travel. Instagram shows you where people went. Layover tells you when you can be there together.</div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-icon">🔄</div>
+      <div class="tp-title">Network effects</div>
+      <div class="tp-body">Every new user makes the app more valuable for existing users. More friends → more overlaps → more reasons to open the app.</div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-icon">📍</div>
+      <div class="tp-title">Opt-in, privacy-first</div>
+      <div class="tp-body">Location sharing is off by default. You choose who sees your trips — public, friends-only, or private. No Snap Map creepiness.</div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-stat">8</div>
+      <div class="tp-title">Pages built in weeks</div>
+      <div class="tp-body">Full stack: auth, trip management, live presence, city explorer, recommendations, alerts — all live on Supabase with real data.</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- WHAT'S REAL vs DEMO -->
+  <div class="flow-label">What's real vs. demo</div>
+  <div class="status-list">
+    <div class="status-row"><div class="s-dot real"></div><div class="s-text">User sign up and sign in (Supabase Auth)</div><div class="s-label real">Real</div></div>
+    <div class="status-row"><div class="s-dot real"></div><div class="s-text">Add trips — saved to database</div><div class="s-label real">Real</div></div>
+    <div class="status-row"><div class="s-dot real"></div><div class="s-text">Profile editing — saves to Supabase</div><div class="s-label real">Real</div></div>
+    <div class="status-row"><div class="s-dot real"></div><div class="s-text">Live location sharing — real GPS + OpenStreetMap</div><div class="s-label real">Real</div></div>
+    <div class="status-row"><div class="s-dot real"></div><div class="s-text">City autocomplete — 280+ cities + live API</div><div class="s-label real">Real</div></div>
+    <div class="status-row"><div class="s-dot demo"></div><div class="s-text">Friends list — demo names, no real graph yet</div><div class="s-label demo">Demo</div></div>
+    <div class="status-row"><div class="s-dot demo"></div><div class="s-text">Overlap detection — demo alerts, not computed live</div><div class="s-label demo">Demo</div></div>
+    <div class="status-row"><div class="s-dot demo"></div><div class="s-text">Recommendations on trip detail — demo content</div><div class="s-label demo">Demo</div></div>
+    <div class="status-row"><div class="s-dot soon"></div><div class="s-text">Real friend graph (send/accept requests)</div><div class="s-label soon">Phase 2</div></div>
+    <div class="status-row"><div class="s-dot soon"></div><div class="s-text">Automatic overlap detection between users</div><div class="s-label soon">Phase 2</div></div>
+    <div class="status-row"><div class="s-dot soon"></div><div class="s-text">Push notifications for overlaps</div><div class="s-label soon">Phase 2</div></div>
+  </div>
+
+  <div class="cta">
+    <div class="cta-title">Ready to <em>take off.</em></div>
+    <div class="cta-sub">Open the app and sign in with the demo account.</div>
+    <a href="layover-landing.html" class="cta-btn">Open Layover →</a>
+  </div>
+
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  function copy(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
