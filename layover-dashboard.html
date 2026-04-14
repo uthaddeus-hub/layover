@@ -466,8 +466,8 @@
 <!-- AUTH GATE -->
 <div class="auth-gate" id="authGate">
   <div class="gate-logo">LAY<span>◆</span>VER</div>
-  <p>Checking your session…</p>
-  <p style="margin-top:8px"><a href="layover-login.html">← Sign in</a></p>
+  <p>Loading your account…</p>
+  <p style="margin-top:16px;font-size:11px"><a href="layover-login.html" style="color:var(--gold)">← Back to sign in</a></p>
 </div>
 
 <!-- SHELL -->
@@ -513,7 +513,7 @@
         <div class="date" id="topDate"></div>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn" onclick="showToast('No new notifications','🔔')" title="Notifications">
+        <button class="icon-btn" onclick="showToast('No new notifications','')" title="Notifications">
           🔔<span class="notif-dot"></span>
         </button>
                 <button class="add-trip-btn" onclick="openModal()">+ Add Trip</button>
@@ -578,7 +578,7 @@
             <!-- Presence banner (shown when user has sharing on) -->
             <div class="presence-banner" id="presenceBanner" style="display:none">
               <div class="presence-dot-live"></div>
-              <div class="presence-text">Sharing your location as <strong id="presenceCityName">—</strong><br><span>Friends can see you're here right now</span></div>
+              <div class="presence-text">Sharing your location as <strong id="presenceCityName">—</strong><br><span>Friends can see you are here right now</span></div>
               <button class="presence-toggle-btn" id="presenceToggleBtn" onclick="togglePresence()">Turn Off</button>
             </div>
 
@@ -600,7 +600,7 @@
         <div class="card fade-in" style="animation-delay:0.25s">
           <div class="card-header">
             <span class="card-title">Activity</span>
-            <button class="card-action" onclick="showToast('Full feed coming soon!','📡')">See All</button>
+            <button class="card-action" onclick="showToast('Full feed coming soon!','')">See All</button>
           </div>
           <div class="card-body" style="padding-top:6px;padding-bottom:6px">
             <div class="feed-list" id="feed-list">
@@ -717,13 +717,25 @@
 
   // ── Auth check ────────────────────────────────────────────
   async function init() {
-    const { data: { session } } = await db.auth.getSession();
-    if (!session) {
-      document.getElementById('authGate').querySelector('p').textContent = 'You need to sign in first.';
-      return;
+    try {
+      // Add 5 second timeout so it never hangs
+      const sessionPromise = db.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+      if (!session) {
+        window.location.href = 'layover-login.html';
+        return;
+      }
+      currentUser = session.user;
+      showApp();
+    } catch (e) {
+      // If Supabase times out or errors, go to login
+      console.error('Auth error:', e.message);
+      if (e.message === 'timeout') {
+        document.getElementById('authGate').querySelector('p').textContent = 'Connection slow — tap to sign in';
+      }
+      window.location.href = 'layover-login.html';
     }
-    currentUser = session.user;
-    showApp();
   }
 
   function showApp() {
@@ -759,9 +771,9 @@
 
   // Demo friend presence data (replaced by Supabase query in production)
   const DEMO_PRESENCE = [
-    { name:'Alex Chen',    initial:'A', online:true,  city:'Tokyo',    country:'Japan',       flag:'🇯🇵', overlap:'⚡ Overlaps your Newark trip' },
-    { name:'Julia Santos', initial:'J', online:true,  city:'London',   country:'UK',          flag:'🇬🇧', overlap:'Visiting Apr 2' },
-    { name:'Thad Williams',initial:'T', online:false, city:'Newark',   country:'United States',flag:'🇺🇸', overlap:'Same city Mar 16–18' },
+    { name:'Alex Chen',    initial:'A', online:true,  city:'Tokyo',    country:'Japan',       flag:'', overlap:' Overlaps your Newark trip' },
+    { name:'Julia Santos', initial:'J', online:true,  city:'London',   country:'UK',          flag:'', overlap:'Visiting Apr 2' },
+    { name:'Thad Williams',initial:'T', online:false, city:'Newark',   country:'United States',flag:'', overlap:'Same city Mar 16–18' },
     { name:'Marcus Lee',   initial:'M', online:false, city:null,       country:null,          flag:null,  overlap:null },
   ];
 
@@ -819,10 +831,10 @@
     updatePresenceUI();
 
     if (presenceSharing) {
-      showToast('Location sharing on — detecting your city…', '📍');
+      showToast('Location sharing on — detecting your city…', '');
       detectAndUpdateCity();
     } else {
-      showToast('Location sharing turned off', '🔕');
+      showToast('Location sharing turned off', '');
       await savePresence(false, null, null, null, null, null);
     }
   }
@@ -841,7 +853,7 @@
           presenceCity = city.city;
           await savePresence(true, city.city, city.country, city.flag, lat, lng);
           updatePresenceUI();
-          showToast('Now sharing: ' + city.city + ' ' + city.flag, '📍');
+          showToast('Now sharing: ' + city.city + ' ' + city.flag, '');
           renderLiveFriends();
         }
       },
@@ -971,7 +983,7 @@
 
   function copyDashInvite() {
     const link = document.getElementById('dashInviteLink').value;
-    navigator.clipboard.writeText(link).then(() => showToast('Invite link copied! 🔗', '🔗'));
+    navigator.clipboard.writeText(link).then(() => showToast('Invite link copied!'));
   }
 
   function dashShareText() {
@@ -982,7 +994,7 @@
 
   function dashShareWhatsApp() {
     const link = document.getElementById('dashInviteLink').value;
-    const msg  = encodeURIComponent('Join me on Layover! It shows when we're in the same city at the same time: ' + link);
+    const msg  = encodeURIComponent('Join me on Layover! It shows when we are in the same city at the same time: ' + link);
     window.open('https://wa.me/?text=' + msg);
   }
 
@@ -1054,7 +1066,7 @@
     if (userTrips.length === 0) {
       wrap.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">✈️</div>
+          <div class="empty-icon">️</div>
           <div class="empty-title">No trips yet.</div>
           <div class="empty-sub">Add your first trip and start seeing<br>where your people are heading.</div>
         </div>`;
@@ -1129,7 +1141,7 @@
       userTrips.sort((a,b) => new Date(a.depart_date) - new Date(b.depart_date));
       renderTrips();
       closeModal();
-      showToast(`Trip to ${city} saved! ✈`, '✈');
+      showToast(`Trip to ${city} saved! `, '✈');
 
       // Add to feed
       prependFeed(`<strong>You</strong> added a trip to ${city}`, 'gold');
@@ -1158,17 +1170,17 @@
   const SEED_CITIES = [
     // ── United States (all 50 states represented) ─────────────
     // Northeast
-    {n:"New York City",c:"United States",f:"🇺🇸"},{n:"Brooklyn",c:"United States",f:"🇺🇸"},{n:"Manhattan",c:"United States",f:"🇺🇸"},{n:"The Bronx",c:"United States",f:"🇺🇸"},{n:"Queens",c:"United States",f:"🇺🇸"},{n:"Staten Island",c:"United States",f:"🇺🇸"},{n:"Newark",c:"United States",f:"🇺🇸"},{n:"Jersey City",c:"United States",f:"🇺🇸"},{n:"Hoboken",c:"United States",f:"🇺🇸"},{n:"Trenton",c:"United States",f:"🇺🇸"},{n:"Atlantic City",c:"United States",f:"🇺🇸"},{n:"Philadelphia",c:"United States",f:"🇺🇸"},{n:"Pittsburgh",c:"United States",f:"🇺🇸"},{n:"Allentown",c:"United States",f:"🇺🇸"},{n:"Harrisburg",c:"United States",f:"🇺🇸"},{n:"Erie",c:"United States",f:"🇺🇸"},{n:"Scranton",c:"United States",f:"🇺🇸"},{n:"Boston",c:"United States",f:"🇺🇸"},{n:"Cambridge",c:"United States",f:"🇺🇸"},{n:"Worcester",c:"United States",f:"🇺🇸"},{n:"Springfield",c:"United States",f:"🇺🇸"},{n:"Providence",c:"United States",f:"🇺🇸"},{n:"Hartford",c:"United States",f:"🇺🇸"},{n:"New Haven",c:"United States",f:"🇺🇸"},{n:"Bridgeport",c:"United States",f:"🇺🇸"},{n:"Stamford",c:"United States",f:"🇺🇸"},{n:"Buffalo",c:"United States",f:"🇺🇸"},{n:"Rochester",c:"United States",f:"🇺🇸"},{n:"Syracuse",c:"United States",f:"🇺🇸"},{n:"Albany",c:"United States",f:"🇺🇸"},{n:"Yonkers",c:"United States",f:"🇺🇸"},{n:"White Plains",c:"United States",f:"🇺🇸"},{n:"Portland ME",c:"United States",f:"🇺🇸"},{n:"Manchester NH",c:"United States",f:"🇺🇸"},{n:"Burlington VT",c:"United States",f:"🇺🇸"},{n:"Montpelier",c:"United States",f:"🇺🇸"},
+    {n:"New York City",c:"United States",f:""},{n:"Brooklyn",c:"United States",f:""},{n:"Manhattan",c:"United States",f:""},{n:"The Bronx",c:"United States",f:""},{n:"Queens",c:"United States",f:""},{n:"Staten Island",c:"United States",f:""},{n:"Newark",c:"United States",f:""},{n:"Jersey City",c:"United States",f:""},{n:"Hoboken",c:"United States",f:""},{n:"Trenton",c:"United States",f:""},{n:"Atlantic City",c:"United States",f:""},{n:"Philadelphia",c:"United States",f:""},{n:"Pittsburgh",c:"United States",f:""},{n:"Allentown",c:"United States",f:""},{n:"Harrisburg",c:"United States",f:""},{n:"Erie",c:"United States",f:""},{n:"Scranton",c:"United States",f:""},{n:"Boston",c:"United States",f:""},{n:"Cambridge",c:"United States",f:""},{n:"Worcester",c:"United States",f:""},{n:"Springfield",c:"United States",f:""},{n:"Providence",c:"United States",f:""},{n:"Hartford",c:"United States",f:""},{n:"New Haven",c:"United States",f:""},{n:"Bridgeport",c:"United States",f:""},{n:"Stamford",c:"United States",f:""},{n:"Buffalo",c:"United States",f:""},{n:"Rochester",c:"United States",f:""},{n:"Syracuse",c:"United States",f:""},{n:"Albany",c:"United States",f:""},{n:"Yonkers",c:"United States",f:""},{n:"White Plains",c:"United States",f:""},{n:"Portland ME",c:"United States",f:""},{n:"Manchester NH",c:"United States",f:""},{n:"Burlington VT",c:"United States",f:""},{n:"Montpelier",c:"United States",f:""},
     // Mid-Atlantic & DC
-    {n:"Washington DC",c:"United States",f:"🇺🇸"},{n:"Baltimore",c:"United States",f:"🇺🇸"},{n:"Annapolis",c:"United States",f:"🇺🇸"},{n:"Richmond",c:"United States",f:"🇺🇸"},{n:"Virginia Beach",c:"United States",f:"🇺🇸"},{n:"Norfolk",c:"United States",f:"🇺🇸"},{n:"Charlottesville",c:"United States",f:"🇺🇸"},{n:"Roanoke",c:"United States",f:"🇺🇸"},{n:"Alexandria VA",c:"United States",f:"🇺🇸"},{n:"Wilmington DE",c:"United States",f:"🇺🇸"},{n:"Dover",c:"United States",f:"🇺🇸"},
+    {n:"Washington DC",c:"United States",f:""},{n:"Baltimore",c:"United States",f:""},{n:"Annapolis",c:"United States",f:""},{n:"Richmond",c:"United States",f:""},{n:"Virginia Beach",c:"United States",f:""},{n:"Norfolk",c:"United States",f:""},{n:"Charlottesville",c:"United States",f:""},{n:"Roanoke",c:"United States",f:""},{n:"Alexandria VA",c:"United States",f:""},{n:"Wilmington DE",c:"United States",f:""},{n:"Dover",c:"United States",f:""},
     // Southeast
-    {n:"Charlotte",c:"United States",f:"🇺🇸"},{n:"Raleigh",c:"United States",f:"🇺🇸"},{n:"Durham",c:"United States",f:"🇺🇸"},{n:"Chapel Hill",c:"United States",f:"🇺🇸"},{n:"Greensboro",c:"United States",f:"🇺🇸"},{n:"Winston-Salem",c:"United States",f:"🇺🇸"},{n:"Asheville",c:"United States",f:"🇺🇸"},{n:"Fayetteville NC",c:"United States",f:"🇺🇸"},{n:"Atlanta",c:"United States",f:"🇺🇸"},{n:"Savannah",c:"United States",f:"🇺🇸"},{n:"Augusta GA",c:"United States",f:"🇺🇸"},{n:"Columbus GA",c:"United States",f:"🇺🇸"},{n:"Macon",c:"United States",f:"🇺🇸"},{n:"Miami",c:"United States",f:"🇺🇸"},{n:"Fort Lauderdale",c:"United States",f:"🇺🇸"},{n:"West Palm Beach",c:"United States",f:"🇺🇸"},{n:"Orlando",c:"United States",f:"🇺🇸"},{n:"Tampa",c:"United States",f:"🇺🇸"},{n:"St. Petersburg FL",c:"United States",f:"🇺🇸"},{n:"Jacksonville",c:"United States",f:"🇺🇸"},{n:"Tallahassee",c:"United States",f:"🇺🇸"},{n:"Gainesville FL",c:"United States",f:"🇺🇸"},{n:"Pensacola",c:"United States",f:"🇺🇸"},{n:"Naples FL",c:"United States",f:"🇺🇸"},{n:"Key West",c:"United States",f:"🇺🇸"},{n:"Sarasota",c:"United States",f:"🇺🇸"},{n:"Charleston SC",c:"United States",f:"🇺🇸"},{n:"Columbia SC",c:"United States",f:"🇺🇸"},{n:"Myrtle Beach",c:"United States",f:"🇺🇸"},{n:"Hilton Head",c:"United States",f:"🇺🇸"},{n:"Columbia SC",c:"United States",f:"🇺🇸"},{n:"Birmingham AL",c:"United States",f:"🇺🇸"},{n:"Huntsville",c:"United States",f:"🇺🇸"},{n:"Montgomery",c:"United States",f:"🇺🇸"},{n:"Mobile",c:"United States",f:"🇺🇸"},{n:"Jackson MS",c:"United States",f:"🇺🇸"},{n:"Biloxi",c:"United States",f:"🇺🇸"},{n:"Louisville",c:"United States",f:"🇺🇸"},{n:"Lexington KY",c:"United States",f:"🇺🇸"},{n:"Nashville",c:"United States",f:"🇺🇸"},{n:"Memphis",c:"United States",f:"🇺🇸"},{n:"Knoxville",c:"United States",f:"🇺🇸"},{n:"Chattanooga",c:"United States",f:"🇺🇸"},{n:"New Orleans",c:"United States",f:"🇺🇸"},{n:"Baton Rouge",c:"United States",f:"🇺🇸"},{n:"Shreveport",c:"United States",f:"🇺🇸"},{n:"Lafayette LA",c:"United States",f:"🇺🇸"},{n:"Little Rock",c:"United States",f:"🇺🇸"},{n:"Fayetteville AR",c:"United States",f:"🇺🇸"},{n:"Bentonville",c:"United States",f:"🇺🇸"},
+    {n:"Charlotte",c:"United States",f:""},{n:"Raleigh",c:"United States",f:""},{n:"Durham",c:"United States",f:""},{n:"Chapel Hill",c:"United States",f:""},{n:"Greensboro",c:"United States",f:""},{n:"Winston-Salem",c:"United States",f:""},{n:"Asheville",c:"United States",f:""},{n:"Fayetteville NC",c:"United States",f:""},{n:"Atlanta",c:"United States",f:""},{n:"Savannah",c:"United States",f:""},{n:"Augusta GA",c:"United States",f:""},{n:"Columbus GA",c:"United States",f:""},{n:"Macon",c:"United States",f:""},{n:"Miami",c:"United States",f:""},{n:"Fort Lauderdale",c:"United States",f:""},{n:"West Palm Beach",c:"United States",f:""},{n:"Orlando",c:"United States",f:""},{n:"Tampa",c:"United States",f:""},{n:"St. Petersburg FL",c:"United States",f:""},{n:"Jacksonville",c:"United States",f:""},{n:"Tallahassee",c:"United States",f:""},{n:"Gainesville FL",c:"United States",f:""},{n:"Pensacola",c:"United States",f:""},{n:"Naples FL",c:"United States",f:""},{n:"Key West",c:"United States",f:""},{n:"Sarasota",c:"United States",f:""},{n:"Charleston SC",c:"United States",f:""},{n:"Columbia SC",c:"United States",f:""},{n:"Myrtle Beach",c:"United States",f:""},{n:"Hilton Head",c:"United States",f:""},{n:"Columbia SC",c:"United States",f:""},{n:"Birmingham AL",c:"United States",f:""},{n:"Huntsville",c:"United States",f:""},{n:"Montgomery",c:"United States",f:""},{n:"Mobile",c:"United States",f:""},{n:"Jackson MS",c:"United States",f:""},{n:"Biloxi",c:"United States",f:""},{n:"Louisville",c:"United States",f:""},{n:"Lexington KY",c:"United States",f:""},{n:"Nashville",c:"United States",f:""},{n:"Memphis",c:"United States",f:""},{n:"Knoxville",c:"United States",f:""},{n:"Chattanooga",c:"United States",f:""},{n:"New Orleans",c:"United States",f:""},{n:"Baton Rouge",c:"United States",f:""},{n:"Shreveport",c:"United States",f:""},{n:"Lafayette LA",c:"United States",f:""},{n:"Little Rock",c:"United States",f:""},{n:"Fayetteville AR",c:"United States",f:""},{n:"Bentonville",c:"United States",f:""},
     // Midwest
-    {n:"Chicago",c:"United States",f:"🇺🇸"},{n:"Evanston",c:"United States",f:"🇺🇸"},{n:"Naperville",c:"United States",f:"🇺🇸"},{n:"Rockford",c:"United States",f:"🇺🇸"},{n:"Peoria IL",c:"United States",f:"🇺🇸"},{n:"Springfield IL",c:"United States",f:"🇺🇸"},{n:"Detroit",c:"United States",f:"🇺🇸"},{n:"Grand Rapids",c:"United States",f:"🇺🇸"},{n:"Ann Arbor",c:"United States",f:"🇺🇸"},{n:"Lansing",c:"United States",f:"🇺🇸"},{n:"Flint",c:"United States",f:"🇺🇸"},{n:"Traverse City",c:"United States",f:"🇺🇸"},{n:"Indianapolis",c:"United States",f:"🇺🇸"},{n:"Fort Wayne",c:"United States",f:"🇺🇸"},{n:"South Bend",c:"United States",f:"🇺🇸"},{n:"Bloomington IN",c:"United States",f:"🇺🇸"},{n:"Columbus OH",c:"United States",f:"🇺🇸"},{n:"Cleveland",c:"United States",f:"🇺🇸"},{n:"Cincinnati",c:"United States",f:"🇺🇸"},{n:"Dayton",c:"United States",f:"🇺🇸"},{n:"Akron",c:"United States",f:"🇺🇸"},{n:"Toledo OH",c:"United States",f:"🇺🇸"},{n:"Milwaukee",c:"United States",f:"🇺🇸"},{n:"Madison WI",c:"United States",f:"🇺🇸"},{n:"Green Bay",c:"United States",f:"🇺🇸"},{n:"Minneapolis",c:"United States",f:"🇺🇸"},{n:"Saint Paul",c:"United States",f:"🇺🇸"},{n:"Duluth",c:"United States",f:"🇺🇸"},{n:"Rochester MN",c:"United States",f:"🇺🇸"},{n:"Kansas City",c:"United States",f:"🇺🇸"},{n:"St. Louis",c:"United States",f:"🇺🇸"},{n:"Springfield MO",c:"United States",f:"🇺🇸"},{n:"Branson",c:"United States",f:"🇺🇸"},{n:"Omaha",c:"United States",f:"🇺🇸"},{n:"Lincoln NE",c:"United States",f:"🇺🇸"},{n:"Des Moines",c:"United States",f:"🇺🇸"},{n:"Iowa City",c:"United States",f:"🇺🇸"},{n:"Sioux Falls",c:"United States",f:"🇺🇸"},{n:"Rapid City",c:"United States",f:"🇺🇸"},{n:"Fargo",c:"United States",f:"🇺🇸"},{n:"Bismarck",c:"United States",f:"🇺🇸"},{n:"Wichita",c:"United States",f:"🇺🇸"},{n:"Topeka",c:"United States",f:"🇺🇸"},{n:"Lawrence KS",c:"United States",f:"🇺🇸"},
+    {n:"Chicago",c:"United States",f:""},{n:"Evanston",c:"United States",f:""},{n:"Naperville",c:"United States",f:""},{n:"Rockford",c:"United States",f:""},{n:"Peoria IL",c:"United States",f:""},{n:"Springfield IL",c:"United States",f:""},{n:"Detroit",c:"United States",f:""},{n:"Grand Rapids",c:"United States",f:""},{n:"Ann Arbor",c:"United States",f:""},{n:"Lansing",c:"United States",f:""},{n:"Flint",c:"United States",f:""},{n:"Traverse City",c:"United States",f:""},{n:"Indianapolis",c:"United States",f:""},{n:"Fort Wayne",c:"United States",f:""},{n:"South Bend",c:"United States",f:""},{n:"Bloomington IN",c:"United States",f:""},{n:"Columbus OH",c:"United States",f:""},{n:"Cleveland",c:"United States",f:""},{n:"Cincinnati",c:"United States",f:""},{n:"Dayton",c:"United States",f:""},{n:"Akron",c:"United States",f:""},{n:"Toledo OH",c:"United States",f:""},{n:"Milwaukee",c:"United States",f:""},{n:"Madison WI",c:"United States",f:""},{n:"Green Bay",c:"United States",f:""},{n:"Minneapolis",c:"United States",f:""},{n:"Saint Paul",c:"United States",f:""},{n:"Duluth",c:"United States",f:""},{n:"Rochester MN",c:"United States",f:""},{n:"Kansas City",c:"United States",f:""},{n:"St. Louis",c:"United States",f:""},{n:"Springfield MO",c:"United States",f:""},{n:"Branson",c:"United States",f:""},{n:"Omaha",c:"United States",f:""},{n:"Lincoln NE",c:"United States",f:""},{n:"Des Moines",c:"United States",f:""},{n:"Iowa City",c:"United States",f:""},{n:"Sioux Falls",c:"United States",f:""},{n:"Rapid City",c:"United States",f:""},{n:"Fargo",c:"United States",f:""},{n:"Bismarck",c:"United States",f:""},{n:"Wichita",c:"United States",f:""},{n:"Topeka",c:"United States",f:""},{n:"Lawrence KS",c:"United States",f:""},
     // Southwest
-    {n:"Dallas",c:"United States",f:"🇺🇸"},{n:"Fort Worth",c:"United States",f:"🇺🇸"},{n:"Houston",c:"United States",f:"🇺🇸"},{n:"San Antonio",c:"United States",f:"🇺🇸"},{n:"Austin",c:"United States",f:"🇺🇸"},{n:"El Paso",c:"United States",f:"🇺🇸"},{n:"Plano",c:"United States",f:"🇺🇸"},{n:"Arlington TX",c:"United States",f:"🇺🇸"},{n:"Corpus Christi",c:"United States",f:"🇺🇸"},{n:"Laredo",c:"United States",f:"🇺🇸"},{n:"Lubbock",c:"United States",f:"🇺🇸"},{n:"Waco",c:"United States",f:"🇺🇸"},{n:"Amarillo",c:"United States",f:"🇺🇸"},{n:"Galveston",c:"United States",f:"🇺🇸"},{n:"Midland TX",c:"United States",f:"🇺🇸"},{n:"Fredericksburg TX",c:"United States",f:"🇺🇸"},{n:"Marfa",c:"United States",f:"🇺🇸"},{n:"Phoenix",c:"United States",f:"🇺🇸"},{n:"Tucson",c:"United States",f:"🇺🇸"},{n:"Scottsdale",c:"United States",f:"🇺🇸"},{n:"Tempe",c:"United States",f:"🇺🇸"},{n:"Mesa",c:"United States",f:"🇺🇸"},{n:"Flagstaff",c:"United States",f:"🇺🇸"},{n:"Sedona",c:"United States",f:"🇺🇸"},{n:"Albuquerque",c:"United States",f:"🇺🇸"},{n:"Santa Fe",c:"United States",f:"🇺🇸"},{n:"Taos",c:"United States",f:"🇺🇸"},{n:"Las Cruces",c:"United States",f:"🇺🇸"},{n:"Las Vegas",c:"United States",f:"🇺🇸"},{n:"Henderson NV",c:"United States",f:"🇺🇸"},{n:"Reno",c:"United States",f:"🇺🇸"},{n:"Sparks NV",c:"United States",f:"🇺🇸"},{n:"Oklahoma City",c:"United States",f:"🇺🇸"},{n:"Tulsa",c:"United States",f:"🇺🇸"},{n:"Norman OK",c:"United States",f:"🇺🇸"},
+    {n:"Dallas",c:"United States",f:""},{n:"Fort Worth",c:"United States",f:""},{n:"Houston",c:"United States",f:""},{n:"San Antonio",c:"United States",f:""},{n:"Austin",c:"United States",f:""},{n:"El Paso",c:"United States",f:""},{n:"Plano",c:"United States",f:""},{n:"Arlington TX",c:"United States",f:""},{n:"Corpus Christi",c:"United States",f:""},{n:"Laredo",c:"United States",f:""},{n:"Lubbock",c:"United States",f:""},{n:"Waco",c:"United States",f:""},{n:"Amarillo",c:"United States",f:""},{n:"Galveston",c:"United States",f:""},{n:"Midland TX",c:"United States",f:""},{n:"Fredericksburg TX",c:"United States",f:""},{n:"Marfa",c:"United States",f:""},{n:"Phoenix",c:"United States",f:""},{n:"Tucson",c:"United States",f:""},{n:"Scottsdale",c:"United States",f:""},{n:"Tempe",c:"United States",f:""},{n:"Mesa",c:"United States",f:""},{n:"Flagstaff",c:"United States",f:""},{n:"Sedona",c:"United States",f:""},{n:"Albuquerque",c:"United States",f:""},{n:"Santa Fe",c:"United States",f:""},{n:"Taos",c:"United States",f:""},{n:"Las Cruces",c:"United States",f:""},{n:"Las Vegas",c:"United States",f:""},{n:"Henderson NV",c:"United States",f:""},{n:"Reno",c:"United States",f:""},{n:"Sparks NV",c:"United States",f:""},{n:"Oklahoma City",c:"United States",f:""},{n:"Tulsa",c:"United States",f:""},{n:"Norman OK",c:"United States",f:""},
     // Mountain West
-    {n:"Denver",c:"United States",f:"🇺🇸"},{n:"Colorado Springs",c:"United States",f:"🇺🇸"},{n:"Boulder",c:"United States",f:"🇺🇸"},{n:"Fort Collins",c:"United States",f:"🇺🇸"},{n:"Aspen",c:"United States",f:"🇺🇸"},{n:"Vail",c:"United States",f:"🇺🇸"},{n:"Breckenridge",c:"United States",f:"🇺🇸"},{n:"Steamboat Springs",c:"United States",f:"🇺🇸"},{n:"Telluride",c:"United States",f:"🇺🇸"},{n:"Durango CO",c:"United States",f:"🇺🇸"},{n:"Pueblo",c:"United States",f:"🇺🇸"},{n:"Salt Lake City",c:"United States",f:"🇺🇸"},{n:"Provo",c:"United States",f:"🇺🇸"},{n:"Ogden UT",c:"United States",f:"🇺🇸"},{n:"Park City",c:"United States",f:"🇺🇸"},{n:"Moab",c:"United States",f:"🇺🇸"},{n:"St. George UT",c:"United States",f:"🇺🇸"},{n:"Boise",c:"United States",f:"🇺🇸"},{n:"Coeur d'Alene",c:"United States",f:"🇺🇸"},{n:"Twin Falls",c:"United States",f:"🇺🇸"},{n:"Idaho Falls",c:"United States",f:"🇺🇸"},{n:"Billings",c:"United States",f:"🇺🇸"},{n:"Bozeman",c:"United States",f:"🇺🇸"},{n:"Missoula",c:"United States",f:"🇺🇸"},{n:"Great Falls MT",c:"United States",f:"🇺🇸"},{n:"Whitefish",c:"United States",f:"🇺🇸"},{n:"Cheyenne",c:"United States",f:"🇺🇸"},{n:"Jackson WY",c:"United States",f:"🇺🇸"},{n:"Casper",c:"United States",f:"🇺🇸"},
+    {n:"Denver",c:"United States",f:""},{n:"Colorado Springs",c:"United States",f:""},{n:"Boulder",c:"United States",f:""},{n:"Fort Collins",c:"United States",f:""},{n:"Aspen",c:"United States",f:""},{n:"Vail",c:"United States",f:""},{n:"Breckenridge",c:"United States",f:""},{n:"Steamboat Springs",c:"United States",f:""},{n:"Telluride",c:"United States",f:""},{n:"Durango CO",c:"United States",f:""},{n:"Pueblo",c:"United States",f:""},{n:"Salt Lake City",c:"United States",f:""},{n:"Provo",c:"United States",f:""},{n:"Ogden UT",c:"United States",f:""},{n:"Park City",c:"United States",f:""},{n:"Moab",c:"United States",f:""},{n:"St. George UT",c:"United States",f:""},{n:"Boise",c:"United States",f:""},{n:"Coeur d'Alene",c:"United States",f:"🇺🇸"},{n:"Twin Falls",c:"United States",f:"🇺🇸"},{n:"Idaho Falls",c:"United States",f:"🇺🇸"},{n:"Billings",c:"United States",f:"🇺🇸"},{n:"Bozeman",c:"United States",f:"🇺🇸"},{n:"Missoula",c:"United States",f:"🇺🇸"},{n:"Great Falls MT",c:"United States",f:"🇺🇸"},{n:"Whitefish",c:"United States",f:"🇺🇸"},{n:"Cheyenne",c:"United States",f:"🇺🇸"},{n:"Jackson WY",c:"United States",f:"🇺🇸"},{n:"Casper",c:"United States",f:"🇺🇸"},
     // West Coast
     {n:"Los Angeles",c:"United States",f:"🇺🇸"},{n:"San Francisco",c:"United States",f:"🇺🇸"},{n:"San Diego",c:"United States",f:"🇺🇸"},{n:"San Jose",c:"United States",f:"🇺🇸"},{n:"Sacramento",c:"United States",f:"🇺🇸"},{n:"Fresno",c:"United States",f:"🇺🇸"},{n:"Long Beach",c:"United States",f:"🇺🇸"},{n:"Oakland",c:"United States",f:"🇺🇸"},{n:"Bakersfield",c:"United States",f:"🇺🇸"},{n:"Anaheim",c:"United States",f:"🇺🇸"},{n:"Santa Ana",c:"United States",f:"🇺🇸"},{n:"Riverside CA",c:"United States",f:"🇺🇸"},{n:"Stockton",c:"United States",f:"🇺🇸"},{n:"Irvine",c:"United States",f:"🇺🇸"},{n:"Santa Barbara",c:"United States",f:"🇺🇸"},{n:"Santa Cruz",c:"United States",f:"🇺🇸"},{n:"Monterey CA",c:"United States",f:"🇺🇸"},{n:"Napa",c:"United States",f:"🇺🇸"},{n:"Sonoma",c:"United States",f:"🇺🇸"},{n:"Palm Springs",c:"United States",f:"🇺🇸"},{n:"Malibu",c:"United States",f:"🇺🇸"},{n:"Beverly Hills",c:"United States",f:"🇺🇸"},{n:"Pasadena",c:"United States",f:"🇺🇸"},{n:"Santa Monica",c:"United States",f:"🇺🇸"},{n:"Venice Beach",c:"United States",f:"🇺🇸"},{n:"Laguna Beach",c:"United States",f:"🇺🇸"},{n:"Big Sur",c:"United States",f:"🇺🇸"},{n:"Lake Tahoe",c:"United States",f:"🇺🇸"},{n:"Seattle",c:"United States",f:"🇺🇸"},{n:"Tacoma",c:"United States",f:"🇺🇸"},{n:"Spokane",c:"United States",f:"🇺🇸"},{n:"Bellevue WA",c:"United States",f:"🇺🇸"},{n:"Olympia WA",c:"United States",f:"🇺🇸"},{n:"Bellingham",c:"United States",f:"🇺🇸"},{n:"Portland OR",c:"United States",f:"🇺🇸"},{n:"Eugene",c:"United States",f:"🇺🇸"},{n:"Salem OR",c:"United States",f:"🇺🇸"},{n:"Bend",c:"United States",f:"🇺🇸"},{n:"Ashland OR",c:"United States",f:"🇺🇸"},
     // Hawaii & Alaska
@@ -1197,7 +1209,7 @@
   ];
 
   function countryToFlag(code) {
-    if (!code || code.length !== 2) return '🌍';
+    if (!code || code.length !== 2) return '';
     return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E0 + c.charCodeAt(0) - 65));
   }
 
@@ -1228,7 +1240,7 @@
           const extra = data.data
             .filter(name => !seedNames.has(name.toLowerCase()) && name.toLowerCase().includes(q.toLowerCase()))
             .slice(0, 6)
-            .map(name => ({ n: name, c: '—', f: '🌍' }));
+            .map(name => ({ n: name, c: '—', f: '' }));
           if (extra.length) renderCityDropdown([...seedMatches, ...extra].slice(0, 10), q);
         }
       } catch {}
@@ -1277,7 +1289,7 @@
     } else if (e.key === 'Enter' && cityFocusIndex >= 0) {
       e.preventDefault();
       const opt = opts[cityFocusIndex];
-      selectCity(opt.dataset.name, opt.dataset.country || '', opt.dataset.flag || '🌍');
+      selectCity(opt.dataset.name, opt.dataset.country || '', opt.dataset.flag || '');
     } else if (e.key === 'Escape') {
       dd.classList.remove('open');
     }
@@ -1301,7 +1313,7 @@
   }
 
   // ── Emoji picker ──────────────────────────────────────────
-  let selectedEmoji = '✈️';
+  let selectedEmoji = '️';
   function selEmoji(btn, emoji) {
     selectedEmoji = emoji;
     document.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('sel'));
@@ -1320,12 +1332,11 @@
     document.getElementById('t-notes').value = '';
     if (typeof selectedCityObj !== 'undefined') selectedCityObj = null;
     if (typeof selectedVibe    !== 'undefined') selectedVibe    = 'adventure';
-    if (typeof selectedEmoji   !== 'undefined') selectedEmoji   = '✈️';
+    if (typeof selectedEmoji   !== 'undefined') selectedEmoji   = '️';
     document.querySelectorAll('.vibe-btn').forEach((b,i) => b.classList.toggle('sel', i===0));
     document.querySelectorAll('.emoji-opt').forEach((b,i) => b.classList.toggle('sel', i===0));
     const dd = document.getElementById('cityDropdown');
     if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
-  }
   }
   document.getElementById('modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
@@ -1340,7 +1351,7 @@
 
   // ── Toast ─────────────────────────────────────────────────
   let toastTimer;
-  function showToast(msg, icon='✓') {
+  function showToast(msg, icon='') {
     const t = document.getElementById('toast');
     t.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`;
     t.classList.add('show', 'gold');
@@ -1369,16 +1380,13 @@
   // ── Boot ──────────────────────────────────────────────────
   init();
 
-  // Page load transition
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      const loader = document.getElementById('pageLoader');
-      if (loader) {
-        loader.classList.add('done');
-        setTimeout(() => loader.remove(), 400);
-      }
-    }, 400);
-  });
+  // Page load transition — force dismiss after 3s max
+  function dismissLoader() {
+    const loader = document.getElementById('pageLoader');
+    if (loader) { loader.classList.add('done'); setTimeout(() => loader.remove(), 400); }
+  }
+  window.addEventListener('load', () => { setTimeout(dismissLoader, 400); });
+  setTimeout(dismissLoader, 3000); // Force dismiss after 3s no matter what
 
   // Fix mobile viewport height (iOS Safari address bar bug)
   function setAppHeight() {
@@ -1394,7 +1402,7 @@
   <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
     <div class="modal-header">
       <div class="modal-title">Invite <em>friends.</em></div>
-      <button class="modal-close" onclick="document.getElementById('inviteModal').classList.remove('open')">✕</button>
+      <button class="modal-close" onclick="document.getElementById('inviteModal').classList.remove('open')"></button>
     </div>
     <div class="modal-body" style="gap:14px">
       <div style="font-size:12px;color:var(--muted);letter-spacing:0.04em;line-height:1.7">Share your link. When friends sign up through it, you'll be connected on Layover automatically.</div>
@@ -1403,8 +1411,8 @@
         <button onclick="copyDashInvite()" style="background:var(--gold);border:none;padding:12px 18px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--night);cursor:none;transition:background 0.2s" onmouseover="this.style.background='var(--gold-light)'" onmouseout="this.style.background='var(--gold)'">Copy</button>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button onclick="dashShareText()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none;transition:all 0.2s" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--muted)'">💬 Text</button>
-        <button onclick="dashShareWhatsApp()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none;transition:all 0.2s" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--muted)'">📱 WhatsApp</button>
+        <button onclick="dashShareText()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none;transition:all 0.2s" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--muted)'"> Text</button>
+        <button onclick="dashShareWhatsApp()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none;transition:all 0.2s" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--muted)'"> WhatsApp</button>
         <button onclick="dashShareNative()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none;transition:all 0.2s" onmouseover="this.style.color='var(--cream)'" onmouseout="this.style.color='var(--muted)'">↑ Share</button>
       </div>
       <div style="font-size:10px;color:var(--dim);text-align:center;letter-spacing:0.06em;padding-top:4px">Also share it on Instagram stories, group chats, or text it to friends going to the same events as you.</div>
