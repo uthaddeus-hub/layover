@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Blank Locations × Layover — NYC April 25</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.5); --dim: rgba(240,232,216,0.2);
+      --green: #7ae0a8; --orange: #e8a87a;
+      --app-height: 100vh;
+    }
+    @supports (height: 100dvh) { :root { --app-height: 100dvh; } }
+    html { height: -webkit-fill-available; }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; min-height: var(--app-height); overflow-x: hidden; }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; min-height: 100vh; min-height: var(--app-height);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      overflow: hidden; padding: 40px 24px 60px;
+    }
+    /* Animated gradient sky — sunset colors */
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background: linear-gradient(160deg,
+        #0a0a0f 0%,
+        #1a0f1f 20%,
+        #2d1810 40%,
+        #3d2008 55%,
+        #2a1505 70%,
+        #0f0a0a 100%
+      );
+    }
+    .hero-glow-1 { position: absolute; top: 20%; right: -10%; width: 600px; height: 400px; background: radial-gradient(ellipse, rgba(232,168,122,0.15) 0%, transparent 65%); pointer-events: none; z-index: 1; animation: glowPulse 6s ease-in-out infinite; }
+    .hero-glow-2 { position: absolute; bottom: 10%; left: -10%; width: 500px; height: 300px; background: radial-gradient(ellipse, rgba(201,168,76,0.1) 0%, transparent 65%); pointer-events: none; z-index: 1; animation: glowPulse 8s ease-in-out infinite reverse; }
+    @keyframes glowPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+    /* Grid lines */
+    .hero-grid { position: absolute; inset: 0; z-index: 1;
+      background-image: linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);
+      background-size: 60px 60px; }
+
+    /* Horizon line */
+    .horizon { position: absolute; bottom: 35%; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,transparent,rgba(232,168,122,0.3),transparent); z-index: 2; }
+
+    .hero-content { position: relative; z-index: 3; text-align: center; max-width: 680px; }
+
+    .event-eyebrow { font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .event-eyebrow::before, .event-eyebrow::after { content: ''; width: 40px; height: 1px; background: var(--gold); display: block; }
+
+    .brand-name { font-family: 'Cormorant Garamond', serif; font-size: clamp(48px, 12vw, 96px); font-weight: 300; line-height: 0.9; letter-spacing: 0.06em; margin-bottom: 8px; color: var(--cream); }
+    .brand-name em { font-style: italic; color: var(--orange); }
+
+    .event-sub { font-size: clamp(14px, 3vw, 20px); color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 32px; }
+
+    .event-details { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+    .event-detail { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .ed-icon { font-size: 18px; }
+    .ed-val { font-size: 12px; color: var(--cream); letter-spacing: 0.08em; }
+    .ed-lbl { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+
+    /* Live countdown */
+    .countdown-strip { display: flex; gap: 1px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); margin-bottom: 36px; }
+    .cd-unit { flex: 1; background: rgba(10,10,15,0.7); padding: 14px 8px; text-align: center; backdrop-filter: blur(8px); }
+    .cd-n { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: var(--cream); line-height: 1; }
+    .cd-l { font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+
+    /* CTA buttons */
+    .hero-ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+    .btn-rsvp { background: var(--gold); border: none; padding: 16px 40px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--night); cursor: pointer; transition: all 0.2s; }
+    .btn-rsvp:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(201,168,76,0.3); }
+    .btn-posh { background: none; border: 1px solid rgba(255,255,255,0.2); padding: 16px 32px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+    .btn-posh:hover { border-color: rgba(255,255,255,0.4); color: var(--cream); }
+
+    .hero-note { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
+    .hero-note span { color: var(--gold); }
+
+    /* Scroll indicator */
+    .scroll-hint { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 6px; animation: scrollBob 2s ease-in-out infinite; }
+    @keyframes scrollBob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(6px)} }
+    .scroll-hint span { font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
+    .scroll-arrow { width: 1px; height: 24px; background: linear-gradient(to bottom, transparent, var(--dim)); }
+
+    /* ── SECTIONS ── */
+    section { max-width: 900px; margin: 0 auto; padding: 80px 24px; }
+
+    .sec-eyebrow { font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .sec-eyebrow::before { content: ''; width: 20px; height: 1px; background: var(--gold); display: block; }
+    .sec-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(32px, 6vw, 52px); font-weight: 300; line-height: 1.1; margin-bottom: 16px; }
+    .sec-title em { font-style: italic; color: var(--gold); }
+    .sec-sub { font-size: 12px; color: var(--muted); line-height: 1.8; letter-spacing: 0.05em; max-width: 560px; }
+
+    /* ── WHO'S GOING ── */
+    .attendees-section { border-top: 1px solid var(--border); }
+    .attendee-stats { display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 32px 0; }
+    .att-stat { flex: 1; background: var(--card); padding: 20px; text-align: center; }
+    .att-stat-n { font-family: 'Cormorant Garamond', serif; font-size: 40px; font-weight: 300; color: var(--cream); }
+    .att-stat-l { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+    .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 28px; }
+    .attendee-card { background: var(--card); padding: 16px; display: flex; align-items: center; gap: 12px; transition: background 0.2s; }
+    .attendee-card:hover { background: var(--card2); }
+    .att-av { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--gold); flex-shrink: 0; }
+    .att-av.you { background: var(--gold); color: var(--night); border-color: var(--gold); }
+    .att-info { flex: 1; min-width: 0; }
+    .att-name { font-size: 12px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .att-from { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .att-badge { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 8px; flex-shrink: 0; }
+    .att-badge.flying { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.2); color: var(--green); }
+    .att-badge.local { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--dim); }
+    .att-badge.you-badge { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25); color: var(--gold); }
+
+    /* Add self card */
+    .join-prompt { background: var(--deep); border: 1px dashed rgba(201,168,76,0.2); padding: 20px; display: flex; align-items: center; gap: 16px; transition: all 0.2s; cursor: pointer; }
+    .join-prompt:hover { border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+    .join-plus { width: 38px; height: 38px; border-radius: 50%; background: none; border: 1.5px dashed rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--gold); flex-shrink: 0; }
+    .join-text { font-size: 12px; color: var(--muted); }
+    .join-text strong { color: var(--gold); }
+
+    /* ── RSVP SECTION ── */
+    .rsvp-section { border-top: 1px solid var(--border); }
+    .rsvp-card { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25); padding: 40px; text-align: center; }
+    .rsvp-title { font-family: 'Cormorant Garamond', serif; font-size: 40px; font-weight: 300; margin-bottom: 10px; }
+    .rsvp-title em { font-style: italic; color: var(--gold); }
+    .rsvp-sub { font-size: 11px; color: var(--muted); line-height: 1.8; margin-bottom: 28px; letter-spacing: 0.05em; }
+    .rsvp-form { display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: 0 auto 20px; }
+    .rsvp-input { background: var(--night); border: 1px solid rgba(201,168,76,0.2); outline: none; padding: 13px 16px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; width: 100%; }
+    .rsvp-input:focus { border-color: rgba(201,168,76,0.5); }
+    .rsvp-input::placeholder { color: var(--dim); }
+    .rsvp-submit { background: var(--gold); border: none; padding: 15px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--night); cursor: pointer; transition: all 0.2s; }
+    .rsvp-submit:hover { background: var(--gold-light); }
+    .rsvp-note { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; line-height: 1.7; }
+    .rsvp-success { display: none; padding: 20px; }
+    .rsvp-success.show { display: block; }
+    .rsvp-success-title { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--green); margin-bottom: 8px; }
+    .rsvp-success-sub { font-size: 11px; color: var(--muted); line-height: 1.8; }
+
+    /* ── DETAILS SECTION ── */
+    .details-section { border-top: 1px solid var(--border); }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 32px; }
+    .detail-card { background: var(--card); padding: 28px; }
+    .dc-icon { font-size: 28px; margin-bottom: 12px; }
+    .dc-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; margin-bottom: 8px; }
+    .dc-body { font-size: 11px; color: var(--muted); line-height: 1.8; letter-spacing: 0.04em; }
+    .dc-body strong { color: var(--cream); }
+    .dc-link { display: inline-block; margin-top: 10px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(201,168,76,0.3); padding-bottom: 2px; transition: border-color 0.2s; }
+    .dc-link:hover { border-color: var(--gold); }
+
+    /* ── SHARE SECTION ── */
+    .share-section { border-top: 1px solid var(--border); text-align: center; }
+    .share-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+    .share-btn { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 12px 22px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .share-btn:hover { border-color: rgba(201,168,76,0.3); color: var(--gold); background: var(--gold-dim); }
+    .share-link-box { display: flex; gap: 0; max-width: 500px; margin: 20px auto 0; }
+    .share-link-input { flex: 1; background: var(--card); border: 1px solid var(--border); outline: none; padding: 12px 16px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+    .share-link-copy { background: var(--gold); border: none; padding: 12px 20px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--night); cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+    .share-link-copy:hover { background: var(--gold-light); }
+
+    /* ── FOOTER ── */
+    .event-footer { border-top: 1px solid var(--border); padding: 40px 24px; text-align: center; }
+    .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 13px; letter-spacing: 0.24em; color: var(--dim); margin-bottom: 8px; }
+    .footer-logo span { color: var(--gold); }
+    .footer-note { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; }
+    .footer-links { display: flex; gap: 24px; justify-content: center; margin-top: 16px; }
+    .footer-links a { font-size: 10px; color: var(--dim); text-decoration: none; letter-spacing: 0.1em; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--gold); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; max-width: 280px; }
+    .toast.show { transform: none; opacity: 1; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,15,0.92); backdrop-filter: blur(8px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--deep); border: 1px solid var(--border); width: 100%; max-width: 440px; animation: modalIn 0.22s ease; }
+    @keyframes modalIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+    .modal-header { padding: 22px 24px; border-bottom: 1px solid var(--border2); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; }
+    .modal-title em { font-style: italic; color: var(--gold); }
+    .modal-close { background: none; border: none; font-size: 18px; color: var(--dim); cursor: pointer; }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .m-input { background: var(--card); border: 1px solid var(--border); outline: none; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); width: 100%; transition: border-color 0.2s; }
+    .m-input:focus { border-color: rgba(201,168,76,0.4); }
+    .m-input::placeholder { color: var(--dim); }
+    .m-submit { background: var(--gold); border: none; padding: 14px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: pointer; transition: background 0.2s; }
+    .m-submit:hover { background: var(--gold-light); }
+    .m-note { font-size: 10px; color: var(--dim); line-height: 1.7; text-align: center; }
+    .m-divider { display: flex; align-items: center; gap: 12px; }
+    .m-divider::before, .m-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .m-divider span { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+    .m-signin { background: none; border: 1px solid var(--border); padding: 12px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); cursor: pointer; transition: all 0.2s; width: 100%; }
+    .m-signin:hover { border-color: rgba(255,255,255,0.2); color: var(--cream); }
+
+    @media (max-width: 600px) {
+      .attendee-grid { grid-template-columns: 1fr; }
+      .details-grid { grid-template-columns: 1fr; }
+      .attendee-stats { flex-wrap: wrap; }
+      .att-stat { min-width: 50%; }
+      .rsvp-card { padding: 24px 16px; }
+      .brand-name { letter-spacing: 0.02em; }
+      .countdown-strip { gap: 0; }
+      .cd-n { font-size: 28px; }
+      section { padding: 48px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-glow-1"></div>
+  <div class="hero-glow-2"></div>
+  <div class="horizon"></div>
+
+  <div class="hero-content">
+    <div class="event-eyebrow">Blank Locations Presents</div>
+
+    <div class="brand-name">Blank<br><em>Locations</em></div>
+    <div class="event-sub">NYC Rooftop Experience</div>
+
+    <div class="event-details">
+      <div class="event-detail">
+        <div class="ed-icon">📅</div>
+        <div class="ed-val">April 25, 2026</div>
+        <div class="ed-lbl">Date</div>
+      </div>
+      <div class="event-detail">
+        <div class="ed-icon">🕒</div>
+        <div class="ed-val">3:00 PM – 9:30 PM</div>
+        <div class="ed-lbl">Time</div>
+      </div>
+      <div class="event-detail">
+        <div class="ed-icon">📍</div>
+        <div class="ed-val">Lilistar, Brooklyn</div>
+        <div class="ed-lbl">Venue</div>
+      </div>
+      <div class="event-detail">
+        <div class="ed-icon">🔞</div>
+        <div class="ed-val">21+ Only</div>
+        <div class="ed-lbl">Age</div>
+      </div>
+    </div>
+
+    <!-- Live countdown -->
+    <div class="countdown-strip" id="countdownStrip">
+      <div class="cd-unit"><div class="cd-n" id="cdDays">—</div><div class="cd-l">Days</div></div>
+      <div class="cd-unit"><div class="cd-n" id="cdHours">—</div><div class="cd-l">Hours</div></div>
+      <div class="cd-unit"><div class="cd-n" id="cdMins">—</div><div class="cd-l">Mins</div></div>
+      <div class="cd-unit"><div class="cd-n" id="cdSecs">—</div><div class="cd-l">Secs</div></div>
+    </div>
+
+    <div class="hero-ctas">
+      <button class="btn-rsvp" onclick="openRsvpModal()">RSVP on Layover ✈</button>
+      <a class="btn-posh" href="https://posh.vip/e/shades-by-blank-locations-nyc?t=bio" target="_blank">Get Tickets on Posh →</a>
+    </div>
+
+    <div class="hero-note">Powered by <span>LAY◆VER</span> · Connect with everyone attending</div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</div>
+
+<!-- WHO'S GOING -->
+<section class="attendees-section">
+  <div class="sec-eyebrow">Attendees</div>
+  <div class="sec-title">See who's <em>flying in.</em></div>
+  <div class="sec-sub">Everyone who RSVPs through Layover is visible here. See who's traveling from out of town, find your people before you land.</div>
+
+  <div class="attendee-stats">
+    <div class="att-stat"><div class="att-stat-n" id="goingCount">1</div><div class="att-stat-l">Going</div></div>
+    <div class="att-stat"><div class="att-stat-n" id="flyingCount">1</div><div class="att-stat-l">Flying In</div></div>
+    <div class="att-stat"><div class="att-stat-n" id="cityCount">3</div><div class="att-stat-l">Cities</div></div>
+    <div class="att-stat"><div class="att-stat-n" id="daysAway" style="color:var(--gold)">11</div><div class="att-stat-l">Days Away</div></div>
+  </div>
+
+  <div class="attendee-grid" id="attendeeGrid">
+    <!-- Demo + real attendees -->
+    <div class="attendee-card">
+      <div class="att-av you">T</div>
+      <div class="att-info">
+        <div class="att-name">Thad Williams</div>
+        <div class="att-from">📍 Atlanta, GA</div>
+      </div>
+      <div class="att-badge flying">Flying In</div>
+    </div>
+    <div class="attendee-card">
+      <div class="att-av">A</div>
+      <div class="att-info">
+        <div class="att-name">Alex Chen</div>
+        <div class="att-from">📍 Los Angeles, CA</div>
+      </div>
+      <div class="att-badge flying">Flying In</div>
+    </div>
+    <div class="attendee-card">
+      <div class="att-av">J</div>
+      <div class="att-info">
+        <div class="att-name">Julia Santos</div>
+        <div class="att-from">📍 Brooklyn, NY</div>
+      </div>
+      <div class="att-badge local">Local</div>
+    </div>
+    <div class="attendee-card">
+      <div class="att-av">M</div>
+      <div class="att-info">
+        <div class="att-name">Marcus Lee</div>
+        <div class="att-from">📍 Houston, TX</div>
+      </div>
+      <div class="att-badge flying">Flying In</div>
+    </div>
+  </div>
+
+  <div class="join-prompt" onclick="openRsvpModal()">
+    <div class="join-plus">+</div>
+    <div class="join-text"><strong>Add yourself to the list</strong> — RSVP and connect with everyone attending</div>
+  </div>
+</section>
+
+<!-- RSVP SECTION -->
+<section class="rsvp-section">
+  <div class="rsvp-card" id="rsvpCard">
+    <div class="sec-eyebrow" style="justify-content:center;margin-bottom:16px">Reserve your spot</div>
+    <div class="rsvp-title">You're <em>invited.</em></div>
+    <div class="rsvp-sub">RSVP through Layover to appear on the attendee list, connect with others flying in, and coordinate your New York trip.</div>
+    <div class="rsvp-form">
+      <input class="rsvp-input" type="text" id="rsvpName" placeholder="Your name"/>
+      <input class="rsvp-input" type="email" id="rsvpEmail" placeholder="Email address"/>
+      <input class="rsvp-input" type="text" id="rsvpCity" placeholder="Flying in from (city)"/>
+      <button class="rsvp-submit" onclick="submitRsvp()">RSVP + Join Layover ✈</button>
+    </div>
+    <div class="rsvp-note">By RSVPing you create a free Layover account. Your trip to NYC will be added automatically and you will be connected to other attendees.</div>
+
+    <div class="rsvp-success" id="rsvpSuccess">
+      <div class="rsvp-success-title">You are in. See you in Brooklyn.</div>
+      <div class="rsvp-success-sub">Check your email to confirm your Layover account. Your NYC trip has been added and you can now see everyone else attending.</div>
+    </div>
+  </div>
+</section>
+
+<!-- EVENT DETAILS -->
+<section class="details-section">
+  <div class="sec-eyebrow">The Details</div>
+  <div class="sec-title">Rooftop over <em>Brooklyn.</em></div>
+  <div class="sec-sub">A curated afternoon into evening experience. Golden hour views, good music, and the people who matter.</div>
+
+  <div class="details-grid">
+    <div class="detail-card">
+      <div class="dc-icon">📍</div>
+      <div class="dc-title">Lilistar</div>
+      <div class="dc-body"><strong>Rooftop Bar & Lounge</strong><br>Brooklyn, New York<br><br>Rooftop venue with panoramic views of the Manhattan skyline and Brooklyn Bridge. One of NYC's most sought-after event spaces.</div>
+      <a class="dc-link" href="https://maps.google.com/?q=Lilistar+Brooklyn+NY" target="_blank">Get Directions →</a>
+    </div>
+    <div class="detail-card">
+      <div class="dc-icon">🕒</div>
+      <div class="dc-title">Schedule</div>
+      <div class="dc-body">
+        <strong>3:00 PM</strong> — Doors open<br>
+        <strong>4:00 PM</strong> — Golden hour begins<br>
+        <strong>6:00 PM</strong> — Sunset over Manhattan<br>
+        <strong>7:30 PM</strong> — Peak vibes<br>
+        <strong>9:30 PM</strong> — Event closes
+      </div>
+    </div>
+    <div class="detail-card">
+      <div class="dc-icon">🎟</div>
+      <div class="dc-title">Tickets</div>
+      <div class="dc-body"><strong>Ticketed event</strong><br>Available exclusively on Posh.<br><br>Must be 21+ with valid ID. Tickets are non-refundable. Dress code in effect — rooftop appropriate.</div>
+      <a class="dc-link" href="https://posh.vip/e/shades-by-blank-locations-nyc?t=bio" target="_blank">Get Tickets on Posh →</a>
+    </div>
+    <div class="detail-card">
+      <div class="dc-icon">✈️</div>
+      <div class="dc-title">Flying In?</div>
+      <div class="dc-body">RSVP on Layover to connect with others making the trip. See who else is flying in from your city, find people to share a ride with, and coordinate the weekend.</div>
+      <a class="dc-link" href="#" onclick="openRsvpModal(); return false;">Add your trip →</a>
+    </div>
+  </div>
+</section>
+
+<!-- SHARE SECTION -->
+<section class="share-section">
+  <div class="sec-eyebrow">Spread the Word</div>
+  <div class="sec-title">Bring your <em>people.</em></div>
+  <div class="sec-sub">Share the event with your crew. Anyone who signs up through your link gets automatically connected to you on Layover.</div>
+
+  <div class="share-btns">
+    <button class="share-btn" onclick="shareText()">💬 Text</button>
+    <button class="share-btn" onclick="shareWhatsApp()">📱 WhatsApp</button>
+    <button class="share-btn" onclick="shareIG()">📸 Instagram</button>
+    <button class="share-btn" onclick="shareNative()">↑ Share</button>
+  </div>
+
+  <div class="share-link-box">
+    <input class="share-link-input" type="text" id="shareEventLink" readonly value="https://layover-theta.vercel.app/layover-event.html"/>
+    <button class="share-link-copy" onclick="copyEventLink()">Copy Link</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div class="event-footer">
+  <div class="footer-logo">LAY<span>◆</span>VER</div>
+  <div class="footer-note">The travel social app — see when your people are in the same city.</div>
+  <div class="footer-links">
+    <a href="layover-landing.html">Download App</a>
+    <a href="layover-landing.html">Sign In</a>
+    <a href="#">Privacy</a>
+  </div>
+</div>
+
+<!-- RSVP MODAL -->
+<div class="modal-overlay" id="rsvpModal" onclick="if(event.target===this)closeRsvpModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">RSVP <em>now.</em></div>
+      <button class="modal-close" onclick="closeRsvpModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--muted);line-height:1.7">Create your free Layover account to RSVP. Your NYC trip gets added automatically and you will be visible to other attendees.</div>
+      <input class="m-input" type="text" id="modalFirst" placeholder="First name"/>
+      <input class="m-input" type="email" id="modalEmail" placeholder="Email address"/>
+      <input class="m-input" type="password" id="modalPass" placeholder="Create a password"/>
+      <input class="m-input" type="text" id="modalFrom" placeholder="Flying in from (city)"/>
+      <button class="m-submit" onclick="submitModalRsvp()">Create Account + RSVP ✈</button>
+      <div class="m-divider"><span>Already have an account?</span></div>
+      <button class="m-signin" onclick="window.location.href='layover-login.html'">Sign In to Layover →</button>
+      <div class="m-note">Free forever. You will appear on the attendee list and be connected to others going to the event.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  const EVENT_DATE = new Date('2026-04-25T15:00:00');
+  const EVENT_END  = new Date('2026-04-25T21:30:00');
+
+  // ── Countdown ─────────────────────────────────────────────
+  function updateCountdown() {
+    const now  = new Date();
+    const diff = EVENT_DATE - now;
+    if (diff <= 0) {
+      document.getElementById('cdDays').textContent  = '0';
+      document.getElementById('cdHours').textContent = '0';
+      document.getElementById('cdMins').textContent  = '0';
+      document.getElementById('cdSecs').textContent  = '0';
+      return;
+    }
+    document.getElementById('cdDays').textContent  = Math.floor(diff / 86400000);
+    document.getElementById('cdHours').textContent = String(Math.floor((diff % 86400000) / 3600000)).padStart(2,'0');
+    document.getElementById('cdMins').textContent  = String(Math.floor((diff % 3600000) / 60000)).padStart(2,'0');
+    document.getElementById('cdSecs').textContent  = String(Math.floor((diff % 60000) / 1000)).padStart(2,'0');
+    // Update days away stat
+    document.getElementById('daysAway').textContent = Math.floor(diff / 86400000);
+  }
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+  // ── Load real attendees from Supabase ─────────────────────
+  async function loadAttendees() {
+    try {
+      // Look for public trips to New York around April 25th
+      const { data } = await db
+        .from('trips')
+        .select('user_id, city, depart_date, return_date, profiles(first_name, username, home_city)')
+        .or('city.ilike.%New York%,city.ilike.%NYC%,city.ilike.%Brooklyn%')
+        .gte('return_date', '2026-04-25')
+        .lte('depart_date', '2026-04-26')
+        .eq('visibility', 'public')
+        .limit(20);
+
+      if (data && data.length > 0) {
+        // Add real attendees to the grid
+        const grid = document.getElementById('attendeeGrid');
+        let flyingCount = 1; // Thad is flying
+        let cities = new Set(['Atlanta, GA', 'Los Angeles, CA', 'Houston, TX']);
+
+        data.forEach(trip => {
+          if (!trip.profiles) return;
+          const name     = trip.profiles.first_name || trip.profiles.username || 'Traveler';
+          const homeCity = trip.profiles.home_city || 'Unknown';
+          const isNYC    = homeCity.toLowerCase().includes('new york') || homeCity.toLowerCase().includes('brooklyn');
+          const initial  = name[0].toUpperCase();
+          cities.add(homeCity);
+          if (!isNYC) flyingCount++;
+
+          const card = document.createElement('div');
+          card.className = 'attendee-card';
+          card.innerHTML = '<div class="att-av">' + initial + '</div>' +
+            '<div class="att-info"><div class="att-name">' + name + '</div>' +
+            '<div class="att-from">From ' + homeCity + '</div></div>' +
+            '<div class="att-badge ' + (isNYC ? 'local' : 'flying') + '">' + (isNYC ? 'Local' : 'Flying In') + '</div>';
+
+          // Insert before the last demo cards
+          grid.insertBefore(card, grid.lastElementChild);
+        });
+
+        // Update stats
+        document.getElementById('goingCount').textContent   = 4 + data.length;
+        document.getElementById('flyingCount').textContent  = flyingCount;
+        document.getElementById('cityCount').textContent    = cities.size;
+      }
+    } catch (e) {
+      console.warn('Could not load attendees:', e.message);
+    }
+  }
+
+  // ── RSVP via Supabase auth ────────────────────────────────
+  async function submitModalRsvp() {
+    const first = document.getElementById('modalFirst').value.trim();
+    const email = document.getElementById('modalEmail').value.trim();
+    const pass  = document.getElementById('modalPass').value.trim();
+    const from  = document.getElementById('modalFrom').value.trim();
+
+    if (!first || !email || !pass) { toast('Please fill in all fields'); return; }
+    if (pass.length < 6) { toast('Password must be at least 6 characters'); return; }
+
+    const btn = document.querySelector('.m-submit');
+    btn.textContent = 'Creating your account...';
+    btn.disabled = true;
+
+    try {
+      const { data, error } = await db.auth.signUp({
+        email, password: pass,
+        options: {
+          data: {
+            first_name: first,
+            home_city:  from || 'Unknown',
+            event_rsvp: 'blank-locations-nyc-apr25'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // Add NYC trip automatically
+      if (data.user) {
+        try {
+          await db.from('trips').insert({
+            user_id:    data.user.id,
+            city:       'New York City',
+            country:    'United States',
+            flag:       '',
+            depart_date:'2026-04-25',
+            return_date:'2026-04-25',
+            notes:      'Shades by Blank Locations — Lilistar Brooklyn NYC',
+            vibe:       'nightlife',
+            cover_emoji:'',
+            visibility: 'public'
+          });
+        } catch {}
+      }
+
+      closeRsvpModal();
+      // Add user to attendee list
+      const grid = document.getElementById('attendeeGrid');
+      const card = document.createElement('div');
+      card.className = 'attendee-card';
+      card.style.animation = 'fadeIn 0.4s ease';
+      const isNYC = from.toLowerCase().includes('new york') || from.toLowerCase().includes('brooklyn');
+      card.innerHTML = '<div class="att-av you">' + first[0].toUpperCase() + '</div>' +
+        '<div class="att-info"><div class="att-name">' + first + '</div>' +
+        '<div class="att-from">From ' + (from || 'Unknown') + '</div></div>' +
+        '<div class="att-badge you-badge">Just joined</div>';
+      grid.insertBefore(card, grid.lastElementChild);
+
+      // Update count
+      const cnt = document.getElementById('goingCount');
+      cnt.textContent = parseInt(cnt.textContent) + 1;
+
+      toast('You are in! See you in Brooklyn on April 25th.');
+
+    } catch (e) {
+      btn.textContent = 'Create Account + RSVP';
+      btn.disabled = false;
+      if (e.message.includes('already registered')) {
+        toast('Email already registered — sign in instead');
+        window.location.href = 'layover-login.html';
+      } else {
+        toast('Something went wrong — try again');
+      }
+    }
+  }
+
+  function submitRsvp() {
+    const name  = document.getElementById('rsvpName').value.trim();
+    const email = document.getElementById('rsvpEmail').value.trim();
+    if (!name || !email) { toast('Please enter your name and email'); return; }
+    // Redirect to modal with prefilled data
+    document.getElementById('modalFirst').value = name;
+    document.getElementById('modalEmail').value = email;
+    openRsvpModal();
+  }
+
+  // ── Modal ─────────────────────────────────────────────────
+  function openRsvpModal()  { document.getElementById('rsvpModal').classList.add('open'); }
+  function closeRsvpModal() { document.getElementById('rsvpModal').classList.remove('open'); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRsvpModal(); });
+
+  // ── Share ─────────────────────────────────────────────────
+  const EVENT_URL = 'https://layover-theta.vercel.app/layover-event.html';
+  const EVENT_MSG = 'Shades by Blank Locations — rooftop party — April 25th at Lilistar Brooklyn. 3PM-9:30PM. 21+. RSVP on Layover: ';
+
+  function copyEventLink() {
+    navigator.clipboard.writeText(EVENT_URL).then(() => toast('Event link copied!'));
+  }
+  function shareText() {
+    window.open('sms:?body=' + encodeURIComponent(EVENT_MSG + EVENT_URL));
+  }
+  function shareWhatsApp() {
+    window.open('https://wa.me/?text=' + encodeURIComponent(EVENT_MSG + EVENT_URL));
+  }
+  function shareIG() {
+    copyEventLink();
+    toast('Link copied — paste it in your Instagram story or bio');
+  }
+  function shareNative() {
+    if (navigator.share) {
+      navigator.share({ title: 'Shades by Blank Locations NYC', text: EVENT_MSG, url: EVENT_URL });
+    } else {
+      copyEventLink();
+    }
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // Viewport fix
+  function setH() { document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px'); }
+  setH(); window.addEventListener('resize', setH);
+
+  // Load real attendees
+  loadAttendees();
+</script>
+</body>
+</html>
