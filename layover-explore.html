@@ -386,6 +386,20 @@
       img, video { max-width: 100%; height: auto; }
     }
 
+
+    /* GLOBAL CITY SEARCH */
+    .search-result-item { padding: 11px 16px; display: flex; align-items: center; gap: 12px; cursor: none; transition: background 0.15s; border-bottom: 1px solid var(--border2); }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: var(--card2); }
+    .sr-flag { font-size: 18px; flex-shrink: 0; }
+    .sr-info { flex: 1; }
+    .sr-city { font-size: 12px; color: var(--cream); }
+    .sr-country { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .sr-explore { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); flex-shrink: 0; }
+    .search-result-loading { padding: 14px 16px; font-size: 11px; color: var(--dim); text-align: center; letter-spacing: 0.08em; }
+    .search-result-empty { padding: 14px 16px; font-size: 11px; color: var(--dim); text-align: center; }
+    .search-wrap { position: relative; }
+
   </style>
 </head>
 <body>
@@ -445,7 +459,8 @@
       <div class="hub-search-row">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
-          <input class="search-input" type="text" placeholder="Search cities, countries…" oninput="filterCities(this.value)" id="citySearchInput"/>
+          <input class="search-input" type="text" placeholder="Search any city in the world…" oninput="handleCitySearch(this.value)" id="citySearchInput" autocomplete="off"/>
+          <div id="globalSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid rgba(201,168,76,0.2);border-top:none;z-index:50;max-height:320px;overflow-y:auto"></div>
         </div>
         <button class="filter-btn active" onclick="setFilter(this,'all')">All Cities</button>
         <button class="filter-btn" onclick="setFilter(this,'friends')">Friends There</button>
@@ -877,7 +892,7 @@
     btn.classList.add('active');
     applyFilters();
   }
-  function filterCities(q) { applyFilters(q); }
+
   function applyFilters(q = document.getElementById('citySearchInput').value) {
     let list = CITIES;
     if (activeFilter === 'friends') list = list.filter(c => c.friends.length > 0);
@@ -886,6 +901,223 @@
     if (q) list = list.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.country.toLowerCase().includes(q.toLowerCase()));
     renderHub(list);
   }
+
+  // ── Global city search (any city in the world) ────────────
+  let searchTimer = null;
+  let searchCache = {};
+
+  function handleCitySearch(q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    q = q.trim();
+
+    if (!q) {
+      resultsEl.style.display = 'none';
+      applyFilters('');
+      return;
+    }
+
+    // Filter featured cities locally first
+    applyFilters(q);
+
+    // Show dropdown
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div class="search-result-loading">Searching cities worldwide...</div>';
+
+    // Debounce API call
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchGlobalCities(q), 350);
+  }
+
+  async function fetchGlobalCities(q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    const cacheKey = q.toLowerCase();
+
+    // Use cache if available
+    if (searchCache[cacheKey]) {
+      renderSearchResults(searchCache[cacheKey], q);
+      return;
+    }
+
+    try {
+      // Try CountriesNow API first
+      const res = await fetch('https://countriesnow.space/api/v0.1/countries/cities/q?city=' + encodeURIComponent(q), {
+        method: 'GET', headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+
+      if (data && data.data && data.data.length > 0) {
+        // Format results — API returns {city, country}
+        const results = data.data.slice(0, 12).map(item => ({
+          city: item.city || item,
+          country: item.country || '',
+          flag: getCountryFlag(item.country || '')
+        }));
+        searchCache[cacheKey] = results;
+        renderSearchResults(results, q);
+        return;
+      }
+    } catch {}
+
+    // Fallback: search our expanded SEED_CITIES from dashboard
+    try {
+      const fallbackResults = SEED_CITIES
+        .filter(c => c.n.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 12)
+        .map(c => ({ city: c.n, country: c.c, flag: c.f }));
+
+      if (fallbackResults.length > 0) {
+        searchCache[cacheKey] = fallbackResults;
+        renderSearchResults(fallbackResults, q);
+        return;
+      }
+    } catch {}
+
+    // No results
+    resultsEl.innerHTML = '<div class="search-result-empty">No cities found for "' + q + '"</div>';
+  }
+
+  function renderSearchResults(results, q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    if (!results || results.length === 0) {
+      resultsEl.innerHTML = '<div class="search-result-empty">No cities found</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = '';
+    results.forEach(r => {
+      const city     = r.city    || '';
+      const country  = r.country || '';
+      const flag     = r.flag    || '🌍';
+      const featured = CITIES.find(fc => fc.name.toLowerCase() === city.toLowerCase());
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML =
+        '<span class="sr-flag">' + flag + '</span>' +
+        '<div class="sr-info">' +
+          '<div class="sr-city">' + city + '</div>' +
+          '<div class="sr-country">' + country + '</div>' +
+        '</div>' +
+        '<span class="sr-explore">' + (featured ? 'Featured' : 'Explore') + ' →</span>';
+      item.addEventListener('click', function() {
+        selectCity(city, country, flag, !!featured);
+      });
+      resultsEl.appendChild(item);
+    });
+  }
+
+  function selectCity(city, country, flag, isFeatured) {
+    // Close dropdown
+    document.getElementById('globalSearchResults').style.display = 'none';
+    document.getElementById('citySearchInput').value = city;
+
+    if (isFeatured) {
+      // Open the featured city detail view
+      const featured = CITIES.find(c => c.name.toLowerCase() === city.toLowerCase());
+      if (featured) { openCity(featured); return; }
+    }
+
+    // Open generic city view for non-featured cities
+    openGenericCity(city, country, flag);
+  }
+
+  function openGenericCity(city, country, flag) {
+    document.getElementById('hubView').style.display  = 'none';
+    document.getElementById('cityView').style.display = 'flex';
+
+    const safeCity    = city    || 'Unknown';
+    const safeCountry = country || '';
+    const safeFlag    = flag    || '🌍';
+
+    document.getElementById('cityBackBtn').onclick = function() {
+      document.getElementById('cityView').style.display = 'none';
+      document.getElementById('hubView').style.display  = 'flex';
+      document.getElementById('citySearchInput').value  = '';
+    };
+
+    const heroName = document.getElementById('cityHeroName');
+    if (heroName) heroName.textContent = safeCity;
+    const heroFlagEl = document.getElementById('cityHeroFlag');
+    if (heroFlagEl) heroFlagEl.textContent = safeFlag;
+    const heroCountryEl = document.getElementById('cityHeroCountry');
+    if (heroCountryEl) heroCountryEl.textContent = safeCountry;
+
+    const mainEl = document.getElementById('cityMainContent');
+    if (!mainEl) return;
+
+    mainEl.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'padding:28px 24px';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:32px;font-weight:300;margin-bottom:8px;font-family:Cormorant Garamond,serif';
+    titleEl.textContent = safeFlag + ' ' + safeCity;
+
+    const countryEl = document.createElement('div');
+    countryEl.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:24px;letter-spacing:0.05em';
+    countryEl.textContent = safeCountry;
+
+    const addCard = document.createElement('div');
+    addCard.style.cssText = 'background:var(--card);border:1px solid var(--border);padding:20px;margin-bottom:16px';
+    addCard.innerHTML = '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Add a Trip Here</div>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px">Be the first of your friends to explore ' + safeCity + '. Add a trip to share tips and see overlaps.</div>';
+
+    const addBtn = document.createElement('button');
+    addBtn.style.cssText = 'background:var(--gold);border:none;padding:11px 24px;font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--night);cursor:pointer';
+    addBtn.textContent = '+ Add Trip to ' + safeCity;
+    addBtn.addEventListener('click', function() { window.location.href = 'layover-dashboard.html'; });
+    addCard.appendChild(addBtn);
+
+    const tipsCard = document.createElement('div');
+    tipsCard.style.cssText = 'background:var(--card);border:1px solid var(--border);padding:20px';
+    tipsCard.innerHTML = '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Friend Tips</div>' +
+      '<div style="font-size:12px;color:var(--dim);letter-spacing:0.06em">No tips yet for ' + safeCity + '. Add a trip and be the first to leave a recommendation.</div>';
+
+    wrapper.appendChild(titleEl);
+    wrapper.appendChild(countryEl);
+    wrapper.appendChild(addCard);
+    wrapper.appendChild(tipsCard);
+    mainEl.appendChild(wrapper);
+  }
+
+  // Get flag emoji from country name
+  function getCountryFlag(country) {
+    const flags = {
+      'United States':'🇺🇸','Japan':'🇯🇵','United Kingdom':'🇬🇧','France':'🇫🇷',
+      'Germany':'🇩🇪','Italy':'🇮🇹','Spain':'🇪🇸','Portugal':'🇵🇹','Netherlands':'🇳🇱',
+      'Australia':'🇦🇺','Canada':'🇨🇦','Brazil':'🇧🇷','Mexico':'🇲🇽','Argentina':'🇦🇷',
+      'South Africa':'🇿🇦','Nigeria':'🇳🇬','Kenya':'🇰🇪','Ghana':'🇬🇭','Ethiopia':'🇪🇹',
+      'Egypt':'🇪🇬','Morocco':'🇲🇦','China':'🇨🇳','India':'🇮🇳','South Korea':'🇰🇷',
+      'Thailand':'🇹🇭','Vietnam':'🇻🇳','Indonesia':'🇮🇩','Philippines':'🇵🇭','Singapore':'🇸🇬',
+      'Malaysia':'🇲🇾','UAE':'🇦🇪','Saudi Arabia':'🇸🇦','Turkey':'🇹🇷','Greece':'🇬🇷',
+      'Sweden':'🇸🇪','Norway':'🇳🇴','Denmark':'🇩🇰','Finland':'🇫🇮','Switzerland':'🇨🇭',
+      'Austria':'🇦🇹','Belgium':'🇧🇪','Poland':'🇵🇱','Czech Republic':'🇨🇿','Hungary':'🇭🇺',
+      'Colombia':'🇨🇴','Peru':'🇵🇪','Chile':'🇨🇱','New Zealand':'🇳🇿','Ireland':'🇮🇪',
+      'Russia':'🇷🇺','Ukraine':'🇺🇦','Israel':'🇮🇱','Pakistan':'🇵🇰','Bangladesh':'🇧🇩',
+      'Sri Lanka':'🇱🇰','Nepal':'🇳🇵','Jamaica':'🇯🇲','Cuba':'🇨🇺','Dominican Republic':'🇩🇴',
+      'Puerto Rico':'🇵🇷','Haiti':'🇭🇹','Trinidad and Tobago':'🇹🇹','Barbados':'🇧🇧',
+      'Iceland':'🇮🇸','Croatia':'🇭🇷','Romania':'🇷🇴','Bulgaria':'🇧🇬','Serbia':'🇷🇸',
+      'Tanzania':'🇹🇿','Uganda':'🇺🇬','Rwanda':'🇷🇼','Senegal':'🇸🇳','Ivory Coast':'🇨🇮',
+      'Cameroon':'🇨🇲','Zimbabwe':'🇿🇼','Zambia':'🇿🇲','Mozambique':'🇲🇿','Angola':'🇦🇴',
+      'Kazakhstan':'🇰🇿','Uzbekistan':'🇺🇿','Georgia':'🇬🇪','Armenia':'🇦🇲','Azerbaijan':'🇦🇿',
+      'Jordan':'🇯🇴','Lebanon':'🇱🇧','Qatar':'🇶🇦','Kuwait':'🇰🇼','Bahrain':'🇧🇭',
+      'Oman':'🇴🇲','Myanmar':'🇲🇲','Cambodia':'🇰🇭','Laos':'🇱🇦','Taiwan':'🇹🇼',
+      'Hong Kong':'🇭🇰','Macau':'🇲🇴','Mongolia':'🇲🇳','Afghanistan':'🇦🇫','Iraq':'🇮🇶',
+      'Panama':'🇵🇦','Costa Rica':'🇨🇷','Guatemala':'🇬🇹','Honduras':'🇭🇳','Nicaragua':'🇳🇮',
+      'El Salvador':'🇸🇻','Bolivia':'🇧🇴','Ecuador':'🇪🇨','Paraguay':'🇵🇾','Uruguay':'🇺🇾',
+      'Venezuela':'🇻🇪','Guyana':'🇬🇾','Suriname':'🇸🇷','Belize':'🇧🇿','Bahamas':'🇧🇸',
+      'Fiji':'🇫🇯','Papua New Guinea':'🇵🇬','Maldives':'🇲🇻','Mauritius':'🇲🇺',
+      'Madagascar':'🇲🇬','Reunion':'🇷🇪','Seychelles':'🇸🇨'
+    };
+    return flags[country] || '🌍';
+  }
+
+  // Close search results when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) {
+      document.getElementById('globalSearchResults').style.display = 'none';
+    }
+  });
 
   // ── Toast ─────────────────────────────────────────────────
   let toastTimer;
