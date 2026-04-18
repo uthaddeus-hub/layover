@@ -378,6 +378,25 @@
     .rp-accept { background: var(--gold); border: none; padding: 7px 16px; font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; }
     .rp-accept:hover { background: var(--gold-light); }
 
+
+    /* USER SEARCH */
+    .user-search-wrap { position: relative; margin-bottom: 20px; }
+    .user-search-input { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 13px 16px 13px 40px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .user-search-input:focus { border-color: rgba(201,168,76,0.4); }
+    .user-search-input::placeholder { color: var(--dim); }
+    .user-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+    .user-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid rgba(201,168,76,0.2); border-top: none; z-index: 50; max-height: 280px; overflow-y: auto; display: none; }
+    .user-search-result { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border2); transition: background 0.15s; cursor: none; }
+    .user-search-result:last-child { border-bottom: none; }
+    .user-search-result:hover { background: var(--card2); }
+    .usr-av { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); flex-shrink: 0; }
+    .usr-info { flex: 1; }
+    .usr-name { font-size: 12px; color: var(--cream); }
+    .usr-handle { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .usr-add-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid rgba(201,168,76,0.3); background: none; color: var(--gold); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; flex-shrink: 0; }
+    .usr-add-btn:hover { background: var(--gold-dim); }
+    .requests-badge { background: var(--gold); color: var(--night); font-size: 9px; padding: 1px 7px; border-radius: 20px; margin-left: 6px; display: none; }
+
   </style>
 </head>
 <body>
@@ -453,10 +472,17 @@
 
       <!-- FRIENDS TAB -->
       <div class="tab-panel active fade-up" id="panel-friends">
+        <!-- Find people search -->
+        <div class="user-search-wrap">
+          <span class="user-search-icon">🔍</span>
+          <input class="user-search-input" type="text" placeholder="Find people by name or username…" oninput="searchUsers(this.value)" id="userSearchInput" autocomplete="off"/>
+          <div class="user-search-results" id="userSearchResults"></div>
+        </div>
+
         <div class="search-filter-row">
           <div class="search-wrap">
             <span class="search-icon">🔍</span>
-            <input class="search-input" type="text" placeholder="Search friends…" oninput="filterFriends(this.value)"/>
+            <input class="search-input" type="text" placeholder="Filter your friends…" oninput="filterFriends(this.value)"/>
           </div>
           <button class="sort-btn active" onclick="setSortActive(this,'traveling')">✈ Traveling Now</button>
           <button class="sort-btn" onclick="setSortActive(this,'overlap')">⚡ Overlap Soon</button>
@@ -467,7 +493,7 @@
         <!-- INVITE CARD -->
         <div class="invite-card" id="inviteCard" style="display:none">
           <div class="ic-title">Invite friends to <em>Layover.</em></div>
-          <div class="ic-sub">Share your personal link. When they sign up you'll be connected automatically.</div>
+          <div class="ic-sub">Share your personal link. When they sign up you will be connected automatically.</div>
           <div class="ic-link-row">
             <input class="ic-link-input" type="text" id="inviteLinkInput" readonly value="Loading…"/>
             <button class="ic-copy-btn" onclick="copyInviteLink()">Copy Link</button>
@@ -626,7 +652,7 @@
 
   function shareViaWhatsApp() {
     const link = document.getElementById('inviteLinkInput').value;
-    const msg  = encodeURIComponent('Join me on Layover! It shows when we're in the same city at the same time: ' + link);
+    const msg  = encodeURIComponent('Join me on Layover! It shows when we are in the same city at the same time: ' + link);
     window.open('https://wa.me/?text=' + msg);
   }
 
@@ -717,18 +743,277 @@
     }
   }
 
+  let currentUser = null;
+  let realFriends  = [];
+
   async function init() {
     const { data:{ session } } = await db.auth.getSession();
     if (session) {
-      const meta = session.user.user_metadata || {};
-      const name = meta.first_name || session.user.email.split('@')[0];
-      document.getElementById('sidebarName').textContent = name;
+      currentUser = session.user;
+      const meta  = currentUser.user_metadata || {};
+      const name  = meta.first_name || currentUser.email.split('@')[0];
+      document.getElementById('sidebarName').textContent  = name;
       document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+      await loadRealFriends();
+      await loadPendingRequests();
+    } else {
+      // Not logged in — show demo data
+      renderFriends(FRIENDS);
+      renderRequests();
+      renderDiscover();
     }
-    renderFriends(FRIENDS);
-    renderRequests();
-    renderDiscover();
-    loadRealFriends();
+  }
+
+  // ── Load real accepted friends ────────────────────────────
+  async function loadRealFriends() {
+    try {
+      const uid = currentUser.id;
+
+      // Get all accepted friendships
+      const { data: friendships } = await db
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .or('requester_id.eq.' + uid + ',addressee_id.eq.' + uid)
+        .eq('status', 'accepted');
+
+      if (!friendships || friendships.length === 0) {
+        // No real friends yet — show demo + invite prompt
+        renderFriends(FRIENDS);
+        renderDiscover();
+        loadRealFriends_updateCount(0);
+        return;
+      }
+
+      // Get the other user's ID from each friendship
+      const friendIds = friendships.map(f =>
+        f.requester_id === uid ? f.addressee_id : f.requester_id
+      );
+
+      // Load their profiles
+      const { data: profiles } = await db
+        .from('profiles')
+        .select('id, first_name, last_name, username, home_city')
+        .in('id', friendIds);
+
+      // Load their presence (live city)
+      const { data: presences } = await db
+        .from('presence')
+        .select('user_id, city, flag, sharing')
+        .in('user_id', friendIds)
+        .eq('sharing', true);
+
+      // Load their upcoming trips
+      const { data: trips } = await db
+        .from('trips')
+        .select('user_id, city, flag, depart_date, return_date')
+        .in('user_id', friendIds)
+        .gte('return_date', new Date().toISOString().split('T')[0])
+        .order('depart_date');
+
+      // Build friend objects
+      realFriends = (profiles || []).map(p => {
+        const presence  = (presences || []).find(pr => pr.user_id === p.id);
+        const userTrips = (trips || []).filter(t => t.user_id === p.id).slice(0, 3);
+        const name      = p.first_name || p.username || 'Traveler';
+        const location  = presence?.city
+          ? (presence.flag || '') + ' ' + presence.city + ' (Live)'
+          : p.home_city || 'Unknown';
+
+        return {
+          id:       p.id,
+          name,
+          handle:   '@' + (p.username || name.toLowerCase().replace(' ', '')),
+          initial:  name[0].toUpperCase(),
+          online:   !!presence,
+          location,
+          mutuals:  0,
+          isReal:   true,
+          trips:    userTrips.map(t => {
+            const today   = new Date();
+            const depart  = new Date(t.depart_date + 'T00:00:00');
+            const ret     = new Date(t.return_date + 'T00:00:00');
+            const isActive = today >= depart && today <= ret;
+            return {
+              dest:       t.city + (t.flag ? ' ' + t.flag : ''),
+              dates:      fmtDate(t.depart_date) + ' - ' + fmtDate(t.return_date),
+              badge:      isActive ? 'active' : 'upcoming',
+              badgeLabel: isActive ? 'Live now' : 'Upcoming'
+            };
+          })
+        };
+      });
+
+      loadRealFriends_updateCount(realFriends.length);
+
+      // Merge real friends with demo friends for a full-looking list
+      const combined = [...realFriends, ...FRIENDS.slice(0, Math.max(0, 4 - realFriends.length))];
+      renderFriends(combined);
+      renderDiscover();
+
+    } catch (e) {
+      console.warn('Could not load real friends:', e.message);
+      renderFriends(FRIENDS);
+      renderDiscover();
+    }
+  }
+
+  function loadRealFriends_updateCount(count) {
+    const el = document.getElementById('friendCount');
+    if (el) el.textContent = count;
+    const rc = document.getElementById('resultsCount');
+    if (rc) rc.textContent = count + ' friend' + (count !== 1 ? 's' : '');
+  }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+
+  // ── Load pending friend requests ──────────────────────────
+  async function loadPendingRequests() {
+    try {
+      const { data: pending } = await db
+        .from('friendships')
+        .select('id, requester_id, created_at')
+        .eq('addressee_id', currentUser.id)
+        .eq('status', 'pending');
+
+      if (!pending || pending.length === 0) return;
+
+      // Load requester profiles
+      const requesterIds = pending.map(p => p.requester_id);
+      const { data: profiles } = await db
+        .from('profiles')
+        .select('id, first_name, username, home_city')
+        .in('id', requesterIds);
+
+      const section = document.getElementById('realPendingSection');
+      const list    = document.getElementById('realPendingList');
+      if (!section || !list) return;
+
+      section.style.display = 'block';
+      list.innerHTML = '';
+
+      pending.forEach(req => {
+        const profile = (profiles || []).find(p => p.id === req.requester_id);
+        const name    = profile ? (profile.first_name || profile.username || 'Someone') : 'Someone';
+        const initial = name[0].toUpperCase();
+        const city    = profile?.home_city || '';
+
+        const row = document.createElement('div');
+        row.className = 'real-pending';
+        row.id = 'req-' + req.id;
+        row.innerHTML =
+          '<div class="rp-av">' + initial + '</div>' +
+          '<div class="rp-info">' +
+            '<div class="rp-name">' + name + '</div>' +
+            '<div class="rp-sub">' + (city ? city + ' · ' : '') + 'Wants to connect on Layover</div>' +
+          '</div>' +
+          '<button class="rp-accept" data-req="' + req.id + '" data-rname="' + name.replace(/"/g,'') + '">Accept</button>';
+        list.appendChild(row);
+      });
+
+      // Use event delegation for accept buttons
+      list.addEventListener('click', function(e) {
+        const btn = e.target.closest('.rp-accept');
+        if (btn) {
+          acceptRequest(btn.dataset.req, btn.dataset.rname, btn);
+        }
+      });
+
+      // Update requests tab badge
+      const badge = document.getElementById('requestsBadge');
+      if (badge) { badge.textContent = pending.length; badge.style.display = 'inline'; }
+
+    } catch (e) {
+      console.warn('Could not load pending requests:', e.message);
+    }
+  }
+
+  async function acceptRequest(friendshipId, name) {
+    try {
+      await db.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+      const row = document.getElementById('req-' + friendshipId);
+      if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.3s'; setTimeout(function(){ row.remove(); }, 300); }
+      toast(name + ' is now your friend on Layover!');
+      setTimeout(loadRealFriends, 500);
+    } catch { toast('Could not accept — try again'); }
+  }
+
+  // ── Search users ──────────────────────────────────────────
+  async function searchUsers(q) {
+    const resultsEl = document.getElementById('userSearchResults');
+    if (!q || q.length < 2) {
+      if (resultsEl) resultsEl.style.display = 'none';
+      return;
+    }
+
+    if (resultsEl) {
+      resultsEl.style.display = 'block';
+      resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">Searching...</div>';
+    }
+
+    try {
+      const { data } = await db
+        .from('profiles')
+        .select('id, first_name, last_name, username, home_city')
+        .or('first_name.ilike.%' + q + '%,username.ilike.%' + q + '%,last_name.ilike.%' + q + '%')
+        .neq('id', currentUser?.id || '')
+        .limit(8);
+
+      if (!data || data.length === 0) {
+        if (resultsEl) resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">No users found</div>';
+        return;
+      }
+
+      if (resultsEl) {
+        resultsEl.innerHTML = '';
+        data.forEach(profile => {
+          const name    = profile.first_name || profile.username || 'Traveler';
+          const handle  = '@' + (profile.username || name.toLowerCase());
+          const city    = profile.home_city || '';
+          const initial = name[0].toUpperCase();
+
+          const item = document.createElement('div');
+          item.className = 'user-search-result';
+          item.innerHTML =
+            '<div class="usr-av">' + initial + '</div>' +
+            '<div class="usr-info">' +
+              '<div class="usr-name">' + name + '</div>' +
+              '<div class="usr-handle">' + handle + (city ? ' · ' + city : '') + '</div>' +
+            '</div>' +
+          resultsEl.appendChild(item);
+        });
+      }
+    } catch (e) {
+      if (resultsEl) resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">Search unavailable</div>';
+    }
+  }
+
+  async function sendFriendRequest(userId, name, btn) {
+    if (!currentUser) { toast('Sign in to connect with friends'); return; }
+    try {
+      btn.textContent = 'Sending...';
+      btn.disabled    = true;
+      await db.from('friendships').insert({
+        requester_id: currentUser.id,
+        addressee_id: userId,
+        status:       'pending'
+      });
+      btn.textContent = 'Sent!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'rgba(122,224,168,0.3)';
+      toast('Friend request sent to ' + name);
+    } catch (e) {
+      if (e.message && e.message.includes('duplicate')) {
+        btn.textContent = 'Already sent';
+      } else {
+        btn.textContent = '+ Connect';
+        btn.disabled = false;
+        toast('Could not send request — try again');
+      }
+    }
   }
 
   // ── Friends grid ──────────────────────────────────────────
@@ -896,6 +1181,15 @@
   document.querySelectorAll('a,button,input,.friend-card,.discover-card,.request-item').forEach(el => {
     el.addEventListener('mouseenter', () => { ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)'; });
     el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+
+  // Close user search when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.user-search-wrap')) {
+      const r = document.getElementById('userSearchResults');
+      if (r) r.style.display = 'none';
+    }
   });
 
   init();
