@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Map</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
+      --sidebar: 220px; --app-height: 100vh;
+    }
+    @supports (height: 100dvh) { :root { --app-height: 100dvh; } }
+    html, body { height: var(--app-height); overflow: hidden; }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    .cursor { position: fixed; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+    .cursor-ring { position: fixed; width: 26px; height: 26px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.15s ease; }
+
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height); }
+
+    /* SIDEBAR */
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content:''; position:absolute; left:0; top:20%; height:60%; width:2px; background:var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
+
+    /* MAP SHELL */
+    .map-shell { display: flex; flex-direction: column; height: var(--app-height); position: relative; overflow: hidden; }
+
+    /* TOPBAR */
+    .map-topbar { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); z-index: 20; position: relative; }
+    .map-topbar-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; }
+    .map-topbar-left h1 em { font-style: italic; color: var(--gold); }
+    .map-topbar-left p { font-size: 10px; color: var(--dim); margin-top: 2px; letter-spacing: 0.08em; }
+    .map-filter-row { display: flex; gap: 6px; }
+    .map-filter-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; }
+    .map-filter-btn.active { border-color: rgba(201,168,76,0.4); color: var(--gold); background: var(--gold-dim); }
+    .map-filter-btn:hover:not(.active) { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+
+    /* MAP CONTAINER */
+    .map-wrap { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; background: var(--night); }
+
+    /* Override Leaflet dark theme */
+    .leaflet-container { background: #0d1117; }
+    .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.7); }
+    .leaflet-control-zoom { border: 1px solid var(--border) !important; background: var(--deep) !important; }
+    .leaflet-control-zoom a { background: var(--deep) !important; color: var(--cream) !important; border-bottom: 1px solid var(--border) !important; }
+    .leaflet-control-zoom a:hover { background: var(--card) !important; }
+    .leaflet-control-attribution { background: rgba(10,10,15,0.8) !important; color: var(--dim) !important; font-size: 9px !important; }
+    .leaflet-control-attribution a { color: var(--muted) !important; }
+
+    /* CUSTOM MAP MARKERS */
+    .map-marker { position: relative; cursor: none; }
+    .marker-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--night); position: relative; }
+    .marker-dot.live { background: var(--green); box-shadow: 0 0 0 3px rgba(122,224,168,0.2); }
+    .marker-dot.upcoming { background: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.2); }
+    .marker-dot.you { background: var(--blue); box-shadow: 0 0 0 3px rgba(122,174,224,0.2); width: 18px; height: 18px; }
+    .marker-pulse { position: absolute; inset: -4px; border-radius: 50%; border: 1px solid currentColor; opacity: 0; animation: markerPulse 2s ease-out infinite; }
+    @keyframes markerPulse { 0%{opacity:0.6;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+
+    /* FRIEND POPUP */
+    .leaflet-popup-content-wrapper { background: var(--deep) !important; border: 1px solid rgba(201,168,76,0.25) !important; border-radius: 0 !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important; padding: 0 !important; }
+    .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+    .leaflet-popup-tip-container { display: none; }
+    .leaflet-popup-close-button { color: var(--dim) !important; font-size: 16px !important; top: 8px !important; right: 10px !important; }
+    .friend-popup { padding: 16px 18px; min-width: 220px; }
+    .fp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .fp-av { width: 36px; height: 36px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--gold); flex-shrink: 0; }
+    .fp-av.you { background: rgba(122,174,224,0.15); border-color: rgba(122,174,224,0.3); color: var(--blue); }
+    .fp-info { flex: 1; }
+    .fp-name { font-size: 13px; color: var(--cream); }
+    .fp-handle { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .fp-badge { font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 8px; flex-shrink: 0; }
+    .fp-badge.live { background: rgba(122,224,168,0.1); border: 1px solid rgba(122,224,168,0.25); color: var(--green); }
+    .fp-badge.upcoming { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+    .fp-badge.you { background: rgba(122,174,224,0.1); border: 1px solid rgba(122,174,224,0.25); color: var(--blue); }
+    .fp-city { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; margin-bottom: 4px; }
+    .fp-dates { font-size: 10px; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.06em; }
+    .fp-actions { display: flex; gap: 6px; }
+    .fp-btn { flex: 1; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 7px 0; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; text-align: center; text-decoration: none; display: block; }
+    .fp-btn:hover { color: var(--cream); border-color: rgba(255,255,255,0.2); }
+    .fp-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .fp-btn.gold:hover { background: var(--gold-dim); }
+
+    /* SIDE PANEL */
+    .map-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 300px; background: rgba(10,10,15,0.95); border-left: 1px solid var(--border); backdrop-filter: blur(12px); z-index: 15; display: flex; flex-direction: column; transform: translateX(0); transition: transform 0.3s ease; overflow-y: auto; }
+    .map-panel.hidden { transform: translateX(100%); }
+    .panel-header { padding: 16px 18px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .panel-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .panel-title::before { content:''; width:14px; height:1px; background:var(--gold); display:block; }
+    .panel-toggle { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); background: none; border: none; cursor: none; font-family: 'DM Mono', monospace; }
+    .panel-toggle:hover { color: var(--muted); }
+    .panel-list { padding: 8px 0; flex: 1; }
+    .panel-item { padding: 14px 18px; border-bottom: 1px solid var(--border2); cursor: none; transition: background 0.2s; display: flex; gap: 12px; align-items: center; }
+    .panel-item:hover { background: rgba(255,255,255,0.03); }
+    .panel-item:last-child { border-bottom: none; }
+    .pi-av { width: 32px; height: 32px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.15); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); flex-shrink: 0; }
+    .pi-av.you { background: rgba(122,174,224,0.1); border-color: rgba(122,174,224,0.2); color: var(--blue); }
+    .pi-info { flex: 1; min-width: 0; }
+    .pi-name { font-size: 12px; color: var(--cream); }
+    .pi-loc { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pi-badge { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px; flex-shrink: 0; }
+    .pi-badge.live { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.2); color: var(--green); }
+    .pi-badge.upcoming { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+
+    /* STATS BAR */
+    .map-stats { display: flex; gap: 1px; background: var(--border); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .ms-item { flex: 1; background: var(--deep); padding: 10px 0; text-align: center; }
+    .ms-num { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; color: var(--cream); }
+    .ms-lbl { font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 80px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    /* LOADING */
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; }
+    .page-loading.done { opacity: 0; pointer-events: none; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content:''; position:absolute; left:-40%; width:40%; height:100%; background:var(--gold); animation:plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
+    .fade-up { opacity:0; transform:translateY(8px); animation:fadeUp 0.4s ease forwards; }
+    @keyframes fadeUp { to{opacity:1;transform:none} }
+
+    /* MOBILE */
+    .mob-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--deep); border-top: 1px solid var(--border); z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; transition: color 0.2s; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      .map-panel { width: 100%; top: auto; bottom: 70px; height: 280px; border-left: none; border-top: 1px solid var(--border); }
+      .map-panel.hidden { transform: translateY(100%); }
+      .map-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .map-filter-row { overflow-x: auto; width: 100%; }
+      .cursor, .cursor-ring { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-loading" id="pageLoader"><div class="pl-logo">LAY<span>◆</span>VER</div><div class="pl-bar"></div></div>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-map.html" class="nav-item active"><span class="nav-icon">🗺</span> Map</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">…</div>
+          <div class="user-status">● Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="map-shell">
+    <!-- TOPBAR -->
+    <div class="map-topbar">
+      <div class="map-topbar-left">
+        <h1>Friend <em>map.</em></h1>
+        <p id="mapSubtitle">Loading your network…</p>
+      </div>
+      <div class="map-filter-row">
+        <button class="map-filter-btn active" onclick="setMapFilter('all', this)">All</button>
+        <button class="map-filter-btn" onclick="setMapFilter('live', this)">Live Now</button>
+        <button class="map-filter-btn" onclick="setMapFilter('upcoming', this)">Upcoming</button>
+        <button class="map-filter-btn" onclick="togglePanel()">List ☰</button>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <!-- SIDE PANEL -->
+      <div class="map-panel" id="mapPanel">
+        <div class="panel-header">
+          <span class="panel-title">Friends Traveling</span>
+          <button class="panel-toggle" onclick="togglePanel()">Close ✕</button>
+        </div>
+        <div class="panel-list" id="panelList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS BAR -->
+    <div class="map-stats">
+      <div class="ms-item"><div class="ms-num" id="msLive">0</div><div class="ms-lbl">Live Now</div></div>
+      <div class="ms-item"><div class="ms-num" id="msUpcoming">0</div><div class="ms-lbl">Upcoming</div></div>
+      <div class="ms-item"><div class="ms-num" id="msCities">0</div><div class="ms-lbl">Cities</div></div>
+      <div class="ms-item"><div class="ms-num" id="msCountries">0</div><div class="ms-lbl">Countries</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav"><div class="mob-nav-inner">
+  <a href="layover-dashboard.html" class="mob-tab"><span class="mt-icon">🏠</span>Home</a>
+  <a href="layover-explore.html" class="mob-tab"><span class="mt-icon">🌍</span>Explore</a>
+  <a href="layover-friends.html" class="mob-tab"><span class="mt-icon">👥</span>Friends</a>
+  <a href="layover-map.html" class="mob-tab active"><span class="mt-icon">🗺</span>Map</a>
+  <a href="layover-profile.html" class="mob-tab"><span class="mt-icon">👤</span>Profile</a>
+</div></nav>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  let map, currentUser, allMarkers = [], activeFilter = 'all';
+
+  // Demo friend data with real coordinates
+  const DEMO_PINS = [
+    {
+      name: 'Alex Chen', initial: 'A', handle: '@alexchen',
+      city: 'Tokyo', country: 'Japan', flag: '',
+      lat: 35.6762, lng: 139.6503,
+      status: 'live', tripId: null,
+      dates: 'Apr 10 - Apr 18', notes: 'First time — ramen tour, teamLab'
+    },
+    {
+      name: 'Julia Santos', initial: 'J', handle: '@juliasantos',
+      city: 'London', country: 'UK', flag: '',
+      lat: 51.5074, lng: -0.1278,
+      status: 'upcoming', tripId: null,
+      dates: 'May 2 - May 6', notes: 'Borough Market, Tate Modern'
+    },
+    {
+      name: 'Marcus Lee', initial: 'M', handle: '@marcuslee',
+      city: 'Miami', country: 'United States', flag: '',
+      lat: 25.7617, lng: -80.1918,
+      status: 'live', tripId: null,
+      dates: 'Mar 28 - Mar 31', notes: 'Art Basel weekend'
+    },
+    {
+      name: 'Priya Nair', initial: 'P', handle: '@priyanair',
+      city: 'Paris', country: 'France', flag: '',
+      lat: 48.8566, lng: 2.3522,
+      status: 'upcoming', tripId: null,
+      dates: 'Apr 20 - Apr 25', notes: 'Euro trip'
+    },
+    {
+      name: 'Dev Sharma', initial: 'D', handle: '@devsharma',
+      city: 'New York', country: 'United States', flag: '',
+      lat: 40.7128, lng: -74.0060,
+      status: 'live', tripId: null,
+      dates: 'Apr 23 - Apr 27', notes: 'NYC for the Blank Locations event!'
+    },
+  ];
+
+  // ── Init ──────────────────────────────────────────────────
+  async function init() {
+    // Init map
+    map = L.map('map', {
+      center: [20, 10],
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 12,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data &copy; OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Load user
+    const { data: { session } } = await db.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      const meta  = currentUser.user_metadata || {};
+      const name  = meta.first_name || currentUser.email.split('@')[0];
+      document.getElementById('sidebarName').textContent  = name;
+      document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+      await loadRealPins(name, name[0].toUpperCase());
+    } else {
+      loadDemoPins();
+    }
+  }
+
+  // ── Load real pins from DB ────────────────────────────────
+  async function loadRealPins(myName, myInitial) {
+    const pins = [];
+
+    // Add user's own trips
+    try {
+      const { data: myTrips } = await db
+        .from('trips')
+        .select('city, country, flag, depart_date, return_date, notes, id')
+        .eq('user_id', currentUser.id)
+        .gte('return_date', new Date().toISOString().split('T')[0]);
+
+      if (myTrips) {
+        for (const t of myTrips) {
+          const coords = await geocodeCity(t.city, t.country);
+          if (coords) {
+            const today  = new Date();
+            const depart = new Date(t.depart_date + 'T00:00:00');
+            const ret    = new Date(t.return_date + 'T00:00:00');
+            const isLive = today >= depart && today <= ret;
+            pins.push({
+              name:    myName,
+              initial: myInitial,
+              handle:  'You',
+              city:    t.city,
+              country: t.country || '',
+              flag:    t.flag || '',
+              lat:     coords.lat,
+              lng:     coords.lng,
+              status:  isLive ? 'live' : 'upcoming',
+              isYou:   true,
+              tripId:  t.id,
+              dates:   fmtDate(t.depart_date) + ' - ' + fmtDate(t.return_date),
+              notes:   t.notes || ''
+            });
+          }
+        }
+      }
+    } catch (e) { console.warn('Could not load own trips:', e.message); }
+
+    // Add accepted friends with presence
+    try {
+      const { data: friendships } = await db
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .or('requester_id.eq.' + currentUser.id + ',addressee_id.eq.' + currentUser.id)
+        .eq('status', 'accepted');
+
+      if (friendships && friendships.length > 0) {
+        const friendIds = friendships.map(function(f) {
+          return f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
+        });
+
+        const { data: profiles } = await db
+          .from('profiles')
+          .select('id, first_name, username')
+          .in('id', friendIds);
+
+        const { data: friendTrips } = await db
+          .from('trips')
+          .select('user_id, city, country, flag, depart_date, return_date, notes, id')
+          .in('user_id', friendIds)
+          .gte('return_date', new Date().toISOString().split('T')[0]);
+
+        if (friendTrips) {
+          for (const t of friendTrips) {
+            const profile = (profiles || []).find(function(p) { return p.id === t.user_id; });
+            const name    = profile ? (profile.first_name || profile.username || 'Friend') : 'Friend';
+            const coords  = await geocodeCity(t.city, t.country);
+            if (coords) {
+              const today  = new Date();
+              const depart = new Date(t.depart_date + 'T00:00:00');
+              const ret    = new Date(t.return_date + 'T00:00:00');
+              const isLive = today >= depart && today <= ret;
+              pins.push({
+                name,
+                initial: name[0].toUpperCase(),
+                handle:  '@' + (profile?.username || name.toLowerCase()),
+                city:    t.city,
+                country: t.country || '',
+                flag:    t.flag || '',
+                lat:     coords.lat,
+                lng:     coords.lng,
+                status:  isLive ? 'live' : 'upcoming',
+                tripId:  t.id,
+                dates:   fmtDate(t.depart_date) + ' - ' + fmtDate(t.return_date),
+                notes:   t.notes || ''
+              });
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn('Could not load friend trips:', e.message); }
+
+    // Merge with demo pins to make map look populated
+    const combined = [...pins, ...DEMO_PINS];
+    renderPins(combined);
+  }
+
+  function loadDemoPins() {
+    renderPins(DEMO_PINS);
+  }
+
+  // ── Geocode city name to lat/lng ──────────────────────────
+  const geocodeCache = {
+    'Tokyo': { lat: 35.6762, lng: 139.6503 },
+    'London': { lat: 51.5074, lng: -0.1278 },
+    'Paris': { lat: 48.8566, lng: 2.3522 },
+    'New York City': { lat: 40.7128, lng: -74.0060 },
+    'New York': { lat: 40.7128, lng: -74.0060 },
+    'Miami': { lat: 25.7617, lng: -80.1918 },
+    'Berlin': { lat: 52.5200, lng: 13.4050 },
+    'Los Angeles': { lat: 34.0522, lng: -118.2437 },
+    'Chicago': { lat: 41.8781, lng: -87.6298 },
+    'Atlanta': { lat: 33.7490, lng: -84.3880 },
+    'Barcelona': { lat: 41.3851, lng: 2.1734 },
+    'Rome': { lat: 41.9028, lng: 12.4964 },
+    'Amsterdam': { lat: 52.3676, lng: 4.9041 },
+    'Dubai': { lat: 25.2048, lng: 55.2708 },
+    'Singapore': { lat: 1.3521, lng: 103.8198 },
+    'Sydney': { lat: -33.8688, lng: 151.2093 },
+    'Toronto': { lat: 43.6532, lng: -79.3832 },
+    'Seoul': { lat: 37.5665, lng: 126.9780 },
+    'Istanbul': { lat: 41.0082, lng: 28.9784 },
+    'Lagos': { lat: 6.5244, lng: 3.3792 },
+    'Lisbon': { lat: 38.7223, lng: -9.1393 },
+    'Newark': { lat: 40.7357, lng: -74.1724 },
+    'Austin': { lat: 30.2672, lng: -97.7431 },
+    'Nairobi': { lat: -1.2921, lng: 36.8219 },
+    'Mumbai': { lat: 19.0760, lng: 72.8777 },
+    'Accra': { lat: 5.6037, lng: -0.1870 },
+    'Johannesburg': { lat: -26.2041, lng: 28.0473 },
+    'Mexico City': { lat: 19.4326, lng: -99.1332 },
+    'Sao Paulo': { lat: -23.5505, lng: -46.6333 },
+    'Buenos Aires': { lat: -34.6037, lng: -58.3816 },
+    'Cairo': { lat: 30.0444, lng: 31.2357 },
+    'Bangkok': { lat: 13.7563, lng: 100.5018 },
+    'Bali': { lat: -8.3405, lng: 115.0920 },
+    'Hong Kong': { lat: 22.3193, lng: 114.1694 },
+    'Kyoto': { lat: 35.0116, lng: 135.7681 },
+    'Osaka': { lat: 34.6937, lng: 135.5023 },
+  };
+
+  async function geocodeCity(city, country) {
+    if (geocodeCache[city]) return geocodeCache[city];
+    try {
+      const q   = encodeURIComponent(city + (country ? ', ' + country : ''));
+      const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + q + '&limit=1', {
+        headers: { 'Accept-Language': 'en' }
+      });
+      const data = await res.json();
+      if (data && data[0]) {
+        const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        geocodeCache[city] = coords;
+        return coords;
+      }
+    } catch {}
+    return null;
+  }
+
+  // ── Render pins on map ────────────────────────────────────
+  function renderPins(pins) {
+    // Clear existing
+    allMarkers.forEach(function(m) { map.removeLayer(m); });
+    allMarkers = [];
+
+    const filtered = activeFilter === 'all' ? pins :
+      pins.filter(function(p) { return p.status === activeFilter; });
+
+    const cities    = new Set();
+    const countries = new Set();
+    let   liveCount = 0, upcomingCount = 0;
+
+    filtered.forEach(function(pin) {
+      cities.add(pin.city);
+      if (pin.country) countries.add(pin.country);
+      if (pin.status === 'live') liveCount++;
+      else upcomingCount++;
+
+      const isLive = pin.status === 'live';
+      const color  = pin.isYou ? '#7aaee0' : (isLive ? '#7ae0a8' : '#c9a84c');
+      const size   = pin.isYou ? 18 : 14;
+
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:2px solid #0a0a0f;box-shadow:0 0 0 ' + (isLive ? '4px' : '3px') + ' ' + color + '33;position:relative">' +
+          (isLive ? '<div style="position:absolute;inset:-5px;border-radius:50%;border:1px solid ' + color + ';opacity:0;animation:pulse 2s ease-out infinite"></div>' : '') +
+          '</div>',
+        iconSize:   [size, size],
+        iconAnchor: [size/2, size/2],
+      });
+
+      const marker = L.marker([pin.lat, pin.lng], { icon });
+
+      const popupContent =
+        '<div class="friend-popup">' +
+          '<div class="fp-header">' +
+            '<div class="fp-av' + (pin.isYou ? ' you' : '') + '">' + pin.initial + '</div>' +
+            '<div class="fp-info">' +
+              '<div class="fp-name">' + pin.name + '</div>' +
+              '<div class="fp-handle">' + pin.handle + '</div>' +
+            '</div>' +
+            '<div class="fp-badge ' + pin.status + '">' + (isLive ? 'Live' : 'Upcoming') + '</div>' +
+          '</div>' +
+          '<div class="fp-city">' + (pin.flag ? pin.flag + ' ' : '') + pin.city + '</div>' +
+          '<div class="fp-dates">' + pin.dates + '</div>' +
+          (pin.notes ? '<div style="font-size:10px;color:var(--muted);margin-bottom:12px;line-height:1.6">' + pin.notes + '</div>' : '') +
+          '<div class="fp-actions">' +
+            '<a href="layover-trip-detail.html' + (pin.tripId ? '?id=' + pin.tripId : '') + '" class="fp-btn gold">View Trip</a>' +
+            '<a href="layover-explore.html" class="fp-btn">Explore City</a>' +
+          '</div>' +
+        '</div>';
+
+      marker.bindPopup(popupContent, { maxWidth: 280, className: 'layover-popup' });
+      marker.addTo(map);
+      allMarkers.push(marker);
+
+      // Add to panel list
+      addPanelItem(pin);
+    });
+
+    // Update stats
+    document.getElementById('msLive').textContent      = liveCount;
+    document.getElementById('msUpcoming').textContent  = upcomingCount;
+    document.getElementById('msCities').textContent    = cities.size;
+    document.getElementById('msCountries').textContent = countries.size;
+    document.getElementById('mapSubtitle').textContent =
+      liveCount + ' friend' + (liveCount !== 1 ? 's' : '') + ' live now · ' +
+      upcomingCount + ' upcoming trip' + (upcomingCount !== 1 ? 's' : '');
+
+    // Fit map to markers if any
+    if (filtered.length > 0) {
+      const group = L.featureGroup(allMarkers);
+      map.fitBounds(group.getBounds().pad(0.3));
+    }
+  }
+
+  function addPanelItem(pin) {
+    const list = document.getElementById('panelList');
+    const item = document.createElement('div');
+    item.className = 'panel-item';
+    item.innerHTML =
+      '<div class="pi-av' + (pin.isYou ? ' you' : '') + '">' + pin.initial + '</div>' +
+      '<div class="pi-info">' +
+        '<div class="pi-name">' + pin.name + '</div>' +
+        '<div class="pi-loc">' + (pin.flag || '') + ' ' + pin.city + ' · ' + pin.dates + '</div>' +
+      '</div>' +
+      '<div class="pi-badge ' + pin.status + '">' + (pin.status === 'live' ? 'Live' : 'Soon') + '</div>';
+    item.addEventListener('click', function() {
+      map.setView([pin.lat, pin.lng], 8);
+      // Find and open the marker popup
+      allMarkers.forEach(function(m) {
+        if (Math.abs(m.getLatLng().lat - pin.lat) < 0.001) {
+          m.openPopup();
+        }
+      });
+    });
+    list.appendChild(item);
+  }
+
+  // ── Filters ───────────────────────────────────────────────
+  function setMapFilter(filter, btn) {
+    activeFilter = filter;
+    document.querySelectorAll('.map-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('panelList').innerHTML = '';
+    renderPins([...DEMO_PINS]);
+  }
+
+  function togglePanel() {
+    document.getElementById('mapPanel').classList.toggle('hidden');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function fmtDate(d) {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3000);
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0, my=0, rx=0, ry=0;
+  document.addEventListener('mousemove', function(e) { mx=e.clientX; my=e.clientY; });
+  (function tick() {
+    cur.style.left=mx+'px'; cur.style.top=my+'px';
+    rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12;
+    ring.style.left=rx+'px'; ring.style.top=ry+'px';
+    requestAnimationFrame(tick);
+  })();
+
+  // Viewport fix
+  function setH() { document.documentElement.style.setProperty('--app-height', window.innerHeight+'px'); }
+  setH(); window.addEventListener('resize', setH); window.addEventListener('orientationchange', function() { setTimeout(setH, 100); });
+
+  // Loading screen
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      const l = document.getElementById('pageLoader');
+      if (l) { l.classList.add('done'); setTimeout(function() { l.remove(); }, 400); }
+    }, 500);
+  });
+
+  init();
+</script>
+</body>
+</html>

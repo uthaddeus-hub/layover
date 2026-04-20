@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Friends</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --red: #e07a7a;
+      --sidebar: 220px;
+    }
+    html, body { height: var(--app-height, 100vh); }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: transform 0.1s; }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height, 100vh); }
+
+    /* SIDEBAR */
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
+
+    /* MAIN */
+    main { overflow-y: auto; display: flex; flex-direction: column; }
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* TOP BAR */
+    .topbar { padding: 20px 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
+    .topbar-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; }
+    .topbar-left h1 em { font-style: italic; color: var(--gold); }
+    .topbar-left p { font-size: 10px; color: var(--dim); letter-spacing: 0.12em; margin-top: 3px; }
+    .topbar-right { display: flex; gap: 10px; }
+    .btn-primary { background: var(--gold); color: var(--night); border: none; padding: 10px 22px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; cursor: none; transition: all 0.2s; }
+    .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.2); }
+    .btn-ghost { background: none; color: var(--muted); border: 1px solid var(--border); padding: 10px 18px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; cursor: none; transition: all 0.2s; }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.18); color: var(--cream); }
+
+    /* PAGE TABS */
+    .page-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 36px; background: var(--deep); flex-shrink: 0; }
+    .ptab { padding: 14px 0; margin-right: 32px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-bottom: -1px; display: flex; align-items: center; gap: 8px; }
+    .ptab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .ptab:hover:not(.active) { color: var(--cream); }
+    .ptab-count { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(201,168,76,0.2); font-size: 9px; padding: 1px 7px; }
+    .ptab-count.red { background: rgba(224,122,122,0.1); color: var(--red); border-color: rgba(224,122,122,0.2); }
+
+    /* CONTENT */
+    .content { padding: 28px 36px; flex: 1; }
+
+    /* SEARCH + FILTER ROW */
+    .search-filter-row { display: flex; gap: 12px; margin-bottom: 28px; align-items: center; }
+    .search-wrap { position: relative; flex: 1; max-width: 380px; }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--dim); pointer-events: none; }
+    .search-input { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 10px 12px 10px 34px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); transition: border-color 0.2s; }
+    .search-input:focus { border-color: rgba(201,168,76,0.4); }
+    .search-input::placeholder { color: var(--dim); }
+    .sort-btn { background: var(--card); border: 1px solid var(--border); padding: 10px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--muted); cursor: none; transition: all 0.2s; text-transform: uppercase; }
+    .sort-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--cream); }
+    .sort-btn.active { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .results-count { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; margin-left: auto; }
+
+    /* PENDING REQUESTS BANNER */
+    .pending-banner { background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.2); padding: 16px 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .pending-avs { display: flex; }
+    .pending-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 2px solid var(--night); margin-right: -8px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); }
+    .pending-text { font-size: 11px; color: var(--cream); letter-spacing: 0.05em; }
+    .pending-text span { color: var(--gold); }
+    .pending-btn { margin-left: auto; background: var(--gold); border: none; padding: 9px 18px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; }
+    .pending-btn:hover { background: var(--gold-light); }
+
+    /* FRIENDS GRID */
+    .friends-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+
+    .friend-card {
+      background: var(--card); padding: 24px;
+      cursor: none; transition: background 0.2s;
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .friend-card:hover { background: var(--card2); }
+    .friend-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform 0.25s; }
+    .friend-card:hover::after { transform: scaleX(1); }
+
+    .fc-top { display: flex; gap: 14px; align-items: flex-start; }
+    .fc-av { width: 46px; height: 46px; border-radius: 50%; background: var(--gold-dim); border: 2px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gold); flex-shrink: 0; position: relative; }
+    .fc-online { position: absolute; bottom: 1px; right: 1px; width: 11px; height: 11px; background: var(--green); border-radius: 50%; border: 2px solid var(--card); }
+    .fc-info { flex: 1; min-width: 0; }
+    .fc-name { font-size: 14px; color: var(--cream); letter-spacing: 0.04em; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fc-handle { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; margin-bottom: 6px; }
+    .fc-location { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+    /* Trip row */
+    .fc-trips { display: flex; flex-direction: column; gap: 6px; }
+    .fc-trip { background: var(--deep); border: 1px solid var(--border2); padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .fc-trip-dest { font-size: 12px; color: var(--cream); }
+    .fc-trip-dates { font-size: 9px; color: var(--muted); letter-spacing: 0.06em; margin-top: 2px; }
+    .fc-trip-badge { font-size: 9px; letter-spacing: 0.12em; padding: 3px 9px; flex-shrink: 0; }
+    .fc-trip-badge.overlap { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+    .fc-trip-badge.upcoming { background: rgba(122,174,224,0.08); border: 1px solid rgba(122,174,224,0.18); color: var(--blue); }
+    .fc-trip-badge.active { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.18); color: var(--green); }
+
+    .fc-no-trips { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; padding: 8px 0; }
+
+    /* Mutual count */
+    .fc-mutual { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; display: flex; align-items: center; gap: 6px; }
+    .fc-mutual::before { content: ''; width: 14px; height: 1px; background: var(--border); }
+
+    /* Actions */
+    .fc-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .fc-btn { flex: 1; padding: 9px 0; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--border); background: none; color: var(--muted); cursor: none; transition: all 0.2s; text-align: center; }
+    .fc-btn:hover { border-color: rgba(255,255,255,0.18); color: var(--cream); }
+    .fc-btn.gold { border-color: rgba(201,168,76,0.3); color: var(--gold); }
+    .fc-btn.gold:hover { background: var(--gold-dim); }
+
+    /* REQUESTS TAB */
+    .requests-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .request-item { background: var(--card); padding: 20px 24px; display: flex; align-items: center; gap: 16px; transition: background 0.2s; }
+    .request-item:hover { background: var(--card2); }
+    .req-av { width: 44px; height: 44px; border-radius: 50%; background: var(--gold-dim); border: 2px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 17px; color: var(--gold); flex-shrink: 0; }
+    .req-info { flex: 1; }
+    .req-name { font-size: 13px; color: var(--cream); margin-bottom: 3px; }
+    .req-detail { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; line-height: 1.6; }
+    .req-mutual { font-size: 10px; color: var(--gold); margin-top: 4px; }
+    .req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .req-accept { background: var(--gold); border: none; padding: 9px 20px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--night); cursor: none; transition: all 0.2s; }
+    .req-accept:hover { background: var(--gold-light); }
+    .req-decline { background: none; border: 1px solid var(--border); padding: 9px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .req-decline:hover { border-color: var(--red); color: var(--red); }
+
+    /* DISCOVER TAB */
+    .discover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .discover-card { background: var(--card); padding: 22px; display: flex; flex-direction: column; gap: 14px; cursor: none; transition: background 0.2s; }
+    .discover-card:hover { background: var(--card2); }
+    .dc-top { display: flex; gap: 12px; align-items: center; }
+    .dc-av { width: 40px; height: 40px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--gold); flex-shrink: 0; }
+    .dc-name { font-size: 13px; color: var(--cream); }
+    .dc-handle { font-size: 10px; color: var(--dim); margin-top: 2px; letter-spacing: 0.06em; }
+    .dc-reason { font-size: 10px; color: var(--gold); background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.15); padding: 4px 10px; display: inline-block; letter-spacing: 0.08em; }
+    .dc-mutual { font-size: 10px; color: var(--muted); letter-spacing: 0.05em; }
+    .dc-add { width: 100%; background: none; border: 1px solid rgba(201,168,76,0.3); padding: 10px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); cursor: none; transition: all 0.2s; }
+    .dc-add:hover { background: var(--gold-dim); }
+    .dc-add.sent { border-color: var(--border); color: var(--dim); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 64px 20px; }
+    .empty-icon { font-size: 40px; opacity: 0.3; margin-bottom: 14px; }
+    .empty-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; color: var(--muted); margin-bottom: 8px; }
+    .empty-sub { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; line-height: 1.8; }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.4s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* ══════════════════════════════════════════
+       MOBILE RESPONSIVE — all breakpoints
+    ══════════════════════════════════════════ */
+    .mob-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--deep); border-top: 1px solid var(--border);
+      z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none; padding: 6px 12px; cursor: pointer;
+      transition: color 0.2s; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+    .mob-tab:hover { color: var(--cream); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      main, .messages-shell, #hubView, #cityView { padding-bottom: 70px; }
+
+      /* Dashboard mobile */
+      .topbar { padding: 14px 16px; }
+      .main-grid { grid-template-columns: 1fr !important; }
+      .right-col { display: none; }
+      .trip-grid { grid-template-columns: 1fr !important; }
+      .stats-row { gap: 8px; }
+      .stat-card { padding: 14px 12px; }
+      .stat-num { font-size: 24px; }
+
+      /* Messages mobile */
+      .messages-shell { grid-template-columns: 1fr !important; }
+      .conv-list-panel { display: none; }
+      .conv-list-panel.mob-show { display: flex !important; position: fixed; inset: 0 0 70px 0; z-index: 50; }
+      #activeChatWrap { height: calc(100vh - 70px) !important; }
+      .chat-header { padding: 12px 16px; }
+      .chat-messages { padding: 12px 16px; }
+      .chat-footer { padding: 10px 16px 14px; }
+      .overlap-banner { margin: 8px 16px; }
+
+      /* Trip detail mobile */
+      .trip-content { grid-template-columns: 1fr !important; }
+      .chat-panel { height: 500px !important; }
+      .section-block { padding: 20px 16px; }
+      .trip-hero { padding: 20px 16px 16px; }
+      .trip-hero-top { flex-direction: column; gap: 12px; }
+      .trip-stat-row { gap: 16px; }
+
+      /* Friends mobile */
+      .friends-grid { grid-template-columns: 1fr !important; }
+      .discover-grid { grid-template-columns: 1fr !important; }
+      .content { padding: 16px !important; }
+      .topbar { flex-wrap: wrap; gap: 10px; }
+      .topbar-right { width: 100%; }
+      .topbar-right button, .topbar-right a { flex: 1; text-align: center; }
+
+      /* Profile mobile */
+      .profile-body { padding: 0 16px 20px; }
+      .avatar-actions { flex-wrap: wrap; gap: 8px; }
+      .pa-btn { font-size: 9px; padding: 8px 12px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat-box { padding: 12px 0; }
+      .profile-name { font-size: 28px; }
+      .content { grid-template-columns: 1fr !important; }
+      .right-col { order: -1; }
+
+      /* Explore mobile */
+      .hub-topbar { padding: 14px 16px; }
+      .hub-search-row { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .hub-scroll { padding: 16px; }
+      .city-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .city-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .city-content { grid-template-columns: 1fr !important; }
+      .city-main { padding: 16px; }
+      .city-sidebar { padding: 16px; border-right: none; border-top: 1px solid var(--border); }
+      .city-hero-body { flex-direction: column; gap: 16px; }
+      .city-hero-stats { flex-wrap: wrap; }
+      .city-name-big { font-size: 36px; }
+
+      /* General modals */
+      .modal { width: 95vw !important; margin: 0 auto; max-height: 92vh; }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 0 16px 16px; }
+
+      /* Hide cursor on mobile */
+      .cursor, .cursor-ring { display: none; }
+
+      /* Tab bars */
+      .page-tabs, .tab-bar { padding: 0 16px; overflow-x: auto; }
+      .ptab, .tbar-item { white-space: nowrap; }
+    }
+
+    @media (max-width: 480px) {
+      .city-grid { grid-template-columns: 1fr !important; }
+      .steps-grid { grid-template-columns: 1fr !important; }
+      .features-grid { grid-template-columns: 1fr !important; }
+      h1 { font-size: clamp(36px, 10vw, 72px) !important; }
+      .section-title { font-size: clamp(24px, 6vw, 40px) !important; }
+      .signup-card { padding: 24px 18px !important; }
+      .form-row { grid-template-columns: 1fr !important; }
+    }
+
+
+    /* LOADING STATES */
+    .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
+
+    /* INVITE SYSTEM */
+    .invite-card { background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25); padding: 24px; margin-bottom: 24px; }
+    .ic-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; margin-bottom: 6px; }
+    .ic-title em { font-style: italic; color: var(--gold); }
+    .ic-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; line-height: 1.7; margin-bottom: 16px; }
+    .ic-link-row { display: flex; gap: 0; }
+    .ic-link-input { flex: 1; background: var(--night); border: 1px solid rgba(201,168,76,0.3); outline: none; padding: 11px 14px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--cream); letter-spacing: 0.04em; }
+    .ic-copy-btn { background: var(--gold); border: none; padding: 11px 20px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; white-space: nowrap; }
+    .ic-copy-btn:hover { background: var(--gold-light); }
+    .ic-share-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .ic-share-btn { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 16px; border: 1px solid rgba(201,168,76,0.25); background: none; color: var(--gold); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+    .ic-share-btn:hover { background: var(--gold-dim); }
+    .ic-stats { display: flex; gap: 24px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(201,168,76,0.15); }
+    .ic-stat { text-align: center; }
+    .ic-stat-num { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--cream); }
+    .ic-stat-lbl { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+
+    /* PENDING CONNECTIONS (real) */
+    .real-pending { background: var(--card2); border: 1px solid rgba(201,168,76,0.15); padding: 14px 18px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .rp-av { width: 36px; height: 36px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold); flex-shrink: 0; }
+    .rp-info { flex: 1; }
+    .rp-name { font-size: 12px; color: var(--cream); }
+    .rp-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .rp-accept { background: var(--gold); border: none; padding: 7px 16px; font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--night); cursor: none; transition: background 0.2s; }
+    .rp-accept:hover { background: var(--gold-light); }
+
+
+    /* USER SEARCH */
+    .user-search-wrap { position: relative; margin-bottom: 20px; }
+    .user-search-input { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 13px 16px 13px 40px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .user-search-input:focus { border-color: rgba(201,168,76,0.4); }
+    .user-search-input::placeholder { color: var(--dim); }
+    .user-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+    .user-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid rgba(201,168,76,0.2); border-top: none; z-index: 50; max-height: 280px; overflow-y: auto; display: none; }
+    .user-search-result { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border2); transition: background 0.15s; cursor: none; }
+    .user-search-result:last-child { border-bottom: none; }
+    .user-search-result:hover { background: var(--card2); }
+    .usr-av { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); flex-shrink: 0; }
+    .usr-info { flex: 1; }
+    .usr-name { font-size: 12px; color: var(--cream); }
+    .usr-handle { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .usr-add-btn { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 6px 14px; border: 1px solid rgba(201,168,76,0.3); background: none; color: var(--gold); cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; flex-shrink: 0; }
+    .usr-add-btn:hover { background: var(--gold-dim); }
+    .requests-badge { background: var(--gold); color: var(--night); font-size: 9px; padding: 1px 7px; border-radius: 20px; margin-left: 6px; display: none; }
+
+  </style>
+</head>
+<body>
+<!-- PAGE LOADING SCREEN -->
+<div class="page-loading" id="pageLoader">
+  <div class="pl-logo">LAY<span>◆</span>VER</div>
+  <div class="pl-bar"></div>
+</div>
+
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+            <a href="layover-friends.html" class="nav-item active"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-map.html" class="nav-item"><span class="nav-icon">🗺</span> Map</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">…</div>
+          <div class="user-status">● Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Your <em>circle.</em></h1>
+        <p id="friendCount">4 friends · 2 requests pending</p>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-ghost" onclick="switchTab('discover')">🔍 Find Friends</button>
+        <button class="btn-primary" onclick="showInviteCard()">+ Invite Friends</button>
+      </div>
+    </div>
+
+    <!-- PAGE TABS -->
+    <div class="page-tabs">
+      <button class="ptab active" id="tab-friends" onclick="switchTab('friends')">
+        Friends <span class="ptab-count" id="tabCountFriends">4</span>
+      </button>
+      <button class="ptab" id="tab-requests" onclick="switchTab('requests')">
+        Requests <span class="ptab-count red" id="tabCountRequests">2</span>
+      </button>
+      <button class="ptab" id="tab-discover" onclick="switchTab('discover')">
+        Discover
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- FRIENDS TAB -->
+      <div class="tab-panel active fade-up" id="panel-friends">
+        <!-- Find people search -->
+        <div class="user-search-wrap">
+          <span class="user-search-icon">🔍</span>
+          <input class="user-search-input" type="text" placeholder="Find people by name or username…" oninput="searchUsers(this.value)" id="userSearchInput" autocomplete="off"/>
+          <div class="user-search-results" id="userSearchResults"></div>
+        </div>
+
+        <div class="search-filter-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" type="text" placeholder="Filter your friends…" oninput="filterFriends(this.value)"/>
+          </div>
+          <button class="sort-btn active" onclick="setSortActive(this,'traveling')">✈ Traveling Now</button>
+          <button class="sort-btn" onclick="setSortActive(this,'overlap')">⚡ Overlap Soon</button>
+          <button class="sort-btn" onclick="setSortActive(this,'all')">All</button>
+          <div class="results-count" id="resultsCount">4 friends</div>
+        </div>
+
+        <!-- INVITE CARD -->
+        <div class="invite-card" id="inviteCard" style="display:none">
+          <div class="ic-title">Invite friends to <em>Layover.</em></div>
+          <div class="ic-sub">Share your personal link. When they sign up you will be connected automatically.</div>
+          <div class="ic-link-row">
+            <input class="ic-link-input" type="text" id="inviteLinkInput" readonly value="Loading…"/>
+            <button class="ic-copy-btn" onclick="copyInviteLink()">Copy Link</button>
+          </div>
+          <div class="ic-share-row">
+            <button class="ic-share-btn" onclick="shareViaText()">💬 Text</button>
+            <button class="ic-share-btn" onclick="shareViaWhatsApp()">📱 WhatsApp</button>
+            <button class="ic-share-btn" onclick="shareViaIG()">📸 Instagram</button>
+            <button class="ic-share-btn" onclick="shareNative()">↑ Share</button>
+          </div>
+          <div class="ic-stats">
+            <div class="ic-stat"><div class="ic-stat-num" id="invitesSent">0</div><div class="ic-stat-lbl">Invited</div></div>
+            <div class="ic-stat"><div class="ic-stat-num" id="invitesJoined">0</div><div class="ic-stat-lbl">Joined</div></div>
+            <div class="ic-stat"><div class="ic-stat-num" id="friendCount">0</div><div class="ic-stat-lbl">Friends</div></div>
+          </div>
+        </div>
+
+        <!-- Pending connections from real DB -->
+        <div id="realPendingSection" style="margin-bottom:16px;display:none">
+          <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px"><span style="width:16px;height:1px;background:var(--gold);display:block"></span>Pending Requests</div>
+          <div id="realPendingList"></div>
+        </div>
+
+        <!-- Pending banner -->
+        <div class="pending-banner" id="pendingBanner">
+          <div class="pending-avs">
+            <div class="pending-av">P</div>
+            <div class="pending-av">S</div>
+          </div>
+          <div class="pending-text"><span>2 people</span> want to connect with you</div>
+          <button class="pending-btn" onclick="switchTab('requests')">Review Requests →</button>
+        </div>
+
+        <div class="friends-grid" id="friendsGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- REQUESTS TAB -->
+      <div class="tab-panel" id="panel-requests">
+        <div style="margin-bottom:20px">
+          <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:10px"><span style="width:20px;height:1px;background:var(--gold);display:block"></span>Incoming Requests</div>
+          <div class="requests-list" id="requestsList"></div>
+        </div>
+        <div style="margin-top:32px">
+          <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:10px"><span style="width:20px;height:1px;background:var(--border);display:block"></span>Sent — Pending</div>
+          <div class="requests-list" id="sentList"></div>
+        </div>
+      </div>
+
+      <!-- DISCOVER TAB -->
+      <div class="tab-panel" id="panel-discover">
+        <div class="search-filter-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" type="text" placeholder="Search by name or city…"/>
+          </div>
+          <div class="results-count">Suggested for you</div>
+        </div>
+        <div class="discover-grid" id="discoverGrid"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  // ── Demo data ─────────────────────────────────────────────
+  const FRIENDS = [
+    { id:1, name:'Alex Chen', handle:'@alexchen', initial:'A', online:true, location:'Tokyo, Japan',
+      mutuals:3,
+      trips:[
+        { dest:'Newark', dates:'Mar 14–22', badge:'overlap', badgeLabel:'⚡ Overlaps yours' },
+        { dest:'Seoul',  dates:'Apr 10–16', badge:'upcoming', badgeLabel:'Upcoming' },
+      ]
+    },
+    { id:2, name:'Thad Williams', handle:'@thadw', initial:'T', online:false, location:'Newark, NJ',
+      mutuals:2,
+      trips:[
+        { dest:'Newark', dates:'Mar 15–17', badge:'active', badgeLabel:'● Live now' },
+      ]
+    },
+    { id:3, name:'Julia Santos', handle:'@juliasantos', initial:'J', online:true, location:'Lisbon, Portugal',
+      mutuals:4,
+      trips:[
+        { dest:'London', dates:'Apr 2–6', badge:'upcoming', badgeLabel:'Upcoming' },
+        { dest:'Paris',  dates:'Apr 18–20', badge:'upcoming', badgeLabel:'Upcoming' },
+      ]
+    },
+    { id:4, name:'Marcus Lee', handle:'@marcuslee', initial:'M', online:false, location:'Austin, TX',
+      mutuals:1,
+      trips:[]
+    },
+  ];
+
+  const REQUESTS_IN = [
+    { id:10, name:'Priya Nair',    handle:'@priyanair', initial:'P', location:'Lisbon, Portugal', mutuals:3, reason:'Traveled to Tokyo together' },
+    { id:11, name:'Sam Rivera',    handle:'@samr',      initial:'S', location:'New York, NY',     mutuals:1, reason:'You both know Julia Santos' },
+  ];
+
+  const REQUESTS_SENT = [
+    { id:20, name:'Chris Okoro', handle:'@chrisokoro', initial:'C', location:'Lagos, Nigeria', mutuals:2 },
+  ];
+
+  const DISCOVER = [
+    { id:30, name:'Yuki Tanaka',  handle:'@yukitanaka', initial:'Y', location:'Tokyo, Japan',    mutuals:2, reason:'Frequent Tokyo traveler' },
+    { id:31, name:'Leo Dubois',   handle:'@leodubois',  initial:'L', location:'Paris, France',   mutuals:3, reason:'3 mutual friends' },
+    { id:32, name:'Aisha Patel',  handle:'@aishapatel', initial:'A', location:'Dubai, UAE',      mutuals:1, reason:'Overlapping cities soon' },
+    { id:33, name:'Tom Eriksson', handle:'@tomerik',    initial:'T', location:'Stockholm, Sweden', mutuals:0, reason:'Travels similar routes' },
+    { id:34, name:'Nina Rossi',   handle:'@ninarossi',  initial:'N', location:'Milan, Italy',    mutuals:2, reason:'2 mutual friends' },
+    { id:35, name:'Dev Sharma',   handle:'@devsharma',  initial:'D', location:'Mumbai, India',   mutuals:1, reason:'1 mutual friend' },
+  ];
+
+  let sentRequests = new Set();
+
+  // ── Init ──────────────────────────────────────────────────
+
+  // ── Real invite system ────────────────────────────────────
+  let myInviteLink = '';
+  let myUserId     = null;
+  let myUsername   = null;
+
+  function showInviteCard() {
+    const card = document.getElementById('inviteCard');
+    card.style.display = card.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function generateInviteLink(username, userId) {
+    const base = window.location.origin + '/layover-landing.html';
+    return base + '?ref=' + encodeURIComponent(username) + '&uid=' + userId;
+  }
+
+  function copyInviteLink() {
+    const link = document.getElementById('inviteLinkInput').value;
+    navigator.clipboard.writeText(link).then(() => {
+      toast('Invite link copied! Share it with your friends 🔗');
+      // Track invite sent
+      const sent = parseInt(document.getElementById('invitesSent').textContent) || 0;
+      document.getElementById('invitesSent').textContent = sent + 1;
+    });
+  }
+
+  function shareViaText() {
+    const link = document.getElementById('inviteLinkInput').value;
+    const msg  = encodeURIComponent('Hey! I just joined Layover — it shows when our travel plans overlap so we can actually meet up. Join here: ' + link);
+    window.open('sms:?body=' + msg);
+  }
+
+  function shareViaWhatsApp() {
+    const link = document.getElementById('inviteLinkInput').value;
+    const msg  = encodeURIComponent('Join me on Layover! It shows when we are in the same city at the same time: ' + link);
+    window.open('https://wa.me/?text=' + msg);
+  }
+
+  function shareViaIG() {
+    copyInviteLink();
+    toast('Link copied — paste it in your Instagram bio or DMs 📸');
+  }
+
+  function shareNative() {
+    const link = document.getElementById('inviteLinkInput').value;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Join me on Layover',
+        text: 'See when our travel plans overlap and actually meet up.',
+        url: link
+      });
+    } else {
+      copyInviteLink();
+    }
+  }
+
+  // ── Load real pending friend requests ─────────────────────
+  async function loadRealFriends() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return;
+
+    myUserId   = session.user.id;
+    const meta = session.user.user_metadata || {};
+    myUsername = meta.username || session.user.email.split('@')[0];
+
+    // Set invite link
+    myInviteLink = generateInviteLink(myUsername, myUserId);
+    document.getElementById('inviteLinkInput').value = myInviteLink;
+
+    // Count real friends
+    try {
+      const { data: friends } = await db
+        .from('friendships')
+        .select('id')
+        .or('requester_id.eq.' + myUserId + ',addressee_id.eq.' + myUserId)
+        .eq('status', 'accepted');
+      if (friends) document.getElementById('friendCount').textContent = friends.length;
+    } catch {}
+
+    // Load pending incoming requests
+    try {
+      const { data: pending } = await db
+        .from('friendships')
+        .select('id, requester_id, profiles!friendships_requester_id_fkey(first_name, username)')
+        .eq('addressee_id', myUserId)
+        .eq('status', 'pending');
+
+      if (pending && pending.length > 0) {
+        const section = document.getElementById('realPendingSection');
+        const list    = document.getElementById('realPendingList');
+        section.style.display = 'block';
+        list.innerHTML = pending.map(p => {
+          const profile = p.profiles || {};
+          const name    = profile.first_name || profile.username || 'Someone';
+          const initial = name[0].toUpperCase();
+          return `<div class="real-pending">
+            <div class="rp-av">${initial}</div>
+            <div class="rp-info">
+              <div class="rp-name">${name}</div>
+              <div class="rp-sub">Wants to connect on Layover</div>
+            </div>
+            <button class="rp-accept" onclick="acceptRealRequest('${p.id}', this)">Accept</button>
+          </div>`;
+        }).join('');
+      }
+    } catch (e) {
+      console.warn('Could not load pending requests:', e.message);
+    }
+  }
+
+  async function acceptRealRequest(friendshipId, btn) {
+    try {
+      await db.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+      btn.closest('.real-pending').style.opacity = '0';
+      btn.closest('.real-pending').style.transition = 'opacity 0.3s';
+      setTimeout(() => btn.closest('.real-pending').remove(), 300);
+      toast('Friend request accepted! 👥');
+      // Update count
+      const el = document.getElementById('friendCount');
+      el.textContent = parseInt(el.textContent) + 1;
+    } catch (e) {
+      toast('Could not accept request — try again');
+    }
+  }
+
+  let currentUser = null;
+  let realFriends  = [];
+
+  async function init() {
+    const { data:{ session } } = await db.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      const meta  = currentUser.user_metadata || {};
+      const name  = meta.first_name || currentUser.email.split('@')[0];
+      document.getElementById('sidebarName').textContent  = name;
+      document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+      await loadRealFriends();
+      await loadPendingRequests();
+    } else {
+      // Not logged in — show demo data
+      renderFriends(FRIENDS);
+      renderRequests();
+      renderDiscover();
+    }
+  }
+
+  // ── Load real accepted friends ────────────────────────────
+  async function loadRealFriends() {
+    try {
+      const uid = currentUser.id;
+
+      // Get all accepted friendships
+      const { data: friendships } = await db
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .or('requester_id.eq.' + uid + ',addressee_id.eq.' + uid)
+        .eq('status', 'accepted');
+
+      if (!friendships || friendships.length === 0) {
+        // No real friends yet — show demo + invite prompt
+        renderFriends(FRIENDS);
+        renderDiscover();
+        loadRealFriends_updateCount(0);
+        return;
+      }
+
+      // Get the other user's ID from each friendship
+      const friendIds = friendships.map(f =>
+        f.requester_id === uid ? f.addressee_id : f.requester_id
+      );
+
+      // Load their profiles
+      const { data: profiles } = await db
+        .from('profiles')
+        .select('id, first_name, last_name, username, home_city')
+        .in('id', friendIds);
+
+      // Load their presence (live city)
+      const { data: presences } = await db
+        .from('presence')
+        .select('user_id, city, flag, sharing')
+        .in('user_id', friendIds)
+        .eq('sharing', true);
+
+      // Load their upcoming trips
+      const { data: trips } = await db
+        .from('trips')
+        .select('user_id, city, flag, depart_date, return_date')
+        .in('user_id', friendIds)
+        .gte('return_date', new Date().toISOString().split('T')[0])
+        .order('depart_date');
+
+      // Build friend objects
+      realFriends = (profiles || []).map(p => {
+        const presence  = (presences || []).find(pr => pr.user_id === p.id);
+        const userTrips = (trips || []).filter(t => t.user_id === p.id).slice(0, 3);
+        const name      = p.first_name || p.username || 'Traveler';
+        const location  = presence?.city
+          ? (presence.flag || '') + ' ' + presence.city + ' (Live)'
+          : p.home_city || 'Unknown';
+
+        return {
+          id:       p.id,
+          name,
+          handle:   '@' + (p.username || name.toLowerCase().replace(' ', '')),
+          initial:  name[0].toUpperCase(),
+          online:   !!presence,
+          location,
+          mutuals:  0,
+          isReal:   true,
+          trips:    userTrips.map(t => {
+            const today   = new Date();
+            const depart  = new Date(t.depart_date + 'T00:00:00');
+            const ret     = new Date(t.return_date + 'T00:00:00');
+            const isActive = today >= depart && today <= ret;
+            return {
+              dest:       t.city + (t.flag ? ' ' + t.flag : ''),
+              dates:      fmtDate(t.depart_date) + ' - ' + fmtDate(t.return_date),
+              badge:      isActive ? 'active' : 'upcoming',
+              badgeLabel: isActive ? 'Live now' : 'Upcoming'
+            };
+          })
+        };
+      });
+
+      loadRealFriends_updateCount(realFriends.length);
+
+      // Merge real friends with demo friends for a full-looking list
+      const combined = [...realFriends, ...FRIENDS.slice(0, Math.max(0, 4 - realFriends.length))];
+      renderFriends(combined);
+      renderDiscover();
+
+    } catch (e) {
+      console.warn('Could not load real friends:', e.message);
+      renderFriends(FRIENDS);
+      renderDiscover();
+    }
+  }
+
+  function loadRealFriends_updateCount(count) {
+    const el = document.getElementById('friendCount');
+    if (el) el.textContent = count;
+    const rc = document.getElementById('resultsCount');
+    if (rc) rc.textContent = count + ' friend' + (count !== 1 ? 's' : '');
+  }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+
+  // ── Load pending friend requests ──────────────────────────
+  async function loadPendingRequests() {
+    try {
+      const { data: pending } = await db
+        .from('friendships')
+        .select('id, requester_id, created_at')
+        .eq('addressee_id', currentUser.id)
+        .eq('status', 'pending');
+
+      if (!pending || pending.length === 0) return;
+
+      // Load requester profiles
+      const requesterIds = pending.map(p => p.requester_id);
+      const { data: profiles } = await db
+        .from('profiles')
+        .select('id, first_name, username, home_city')
+        .in('id', requesterIds);
+
+      const section = document.getElementById('realPendingSection');
+      const list    = document.getElementById('realPendingList');
+      if (!section || !list) return;
+
+      section.style.display = 'block';
+      list.innerHTML = '';
+
+      pending.forEach(req => {
+        const profile = (profiles || []).find(p => p.id === req.requester_id);
+        const name    = profile ? (profile.first_name || profile.username || 'Someone') : 'Someone';
+        const initial = name[0].toUpperCase();
+        const city    = profile?.home_city || '';
+
+        const row = document.createElement('div');
+        row.className = 'real-pending';
+        row.id = 'req-' + req.id;
+        row.innerHTML =
+          '<div class="rp-av">' + initial + '</div>' +
+          '<div class="rp-info">' +
+            '<div class="rp-name">' + name + '</div>' +
+            '<div class="rp-sub">' + (city ? city + ' · ' : '') + 'Wants to connect on Layover</div>' +
+          '</div>' +
+          '<button class="rp-accept" data-req="' + req.id + '" data-rname="' + name.replace(/"/g,'') + '">Accept</button>';
+        list.appendChild(row);
+      });
+
+      // Use event delegation for accept buttons
+      list.addEventListener('click', function(e) {
+        const btn = e.target.closest('.rp-accept');
+        if (btn) {
+          acceptRequest(btn.dataset.req, btn.dataset.rname, btn);
+        }
+      });
+
+      // Update requests tab badge
+      const badge = document.getElementById('requestsBadge');
+      if (badge) { badge.textContent = pending.length; badge.style.display = 'inline'; }
+
+    } catch (e) {
+      console.warn('Could not load pending requests:', e.message);
+    }
+  }
+
+  async function acceptRequest(friendshipId, name) {
+    try {
+      await db.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+      const row = document.getElementById('req-' + friendshipId);
+      if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.3s'; setTimeout(function(){ row.remove(); }, 300); }
+      toast(name + ' is now your friend on Layover!');
+      setTimeout(loadRealFriends, 500);
+    } catch { toast('Could not accept — try again'); }
+  }
+
+  // ── Search users ──────────────────────────────────────────
+  async function searchUsers(q) {
+    const resultsEl = document.getElementById('userSearchResults');
+    if (!q || q.length < 2) {
+      if (resultsEl) resultsEl.style.display = 'none';
+      return;
+    }
+
+    if (resultsEl) {
+      resultsEl.style.display = 'block';
+      resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">Searching...</div>';
+    }
+
+    try {
+      const { data } = await db
+        .from('profiles')
+        .select('id, first_name, last_name, username, home_city')
+        .or('first_name.ilike.%' + q + '%,username.ilike.%' + q + '%,last_name.ilike.%' + q + '%')
+        .neq('id', currentUser?.id || '')
+        .limit(8);
+
+      if (!data || data.length === 0) {
+        if (resultsEl) resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">No users found</div>';
+        return;
+      }
+
+      if (resultsEl) {
+        resultsEl.innerHTML = '';
+        data.forEach(profile => {
+          const name    = profile.first_name || profile.username || 'Traveler';
+          const handle  = '@' + (profile.username || name.toLowerCase());
+          const city    = profile.home_city || '';
+          const initial = name[0].toUpperCase();
+
+          const item = document.createElement('div');
+          item.className = 'user-search-result';
+          item.innerHTML =
+            '<div class="usr-av">' + initial + '</div>' +
+            '<div class="usr-info">' +
+              '<div class="usr-name">' + name + '</div>' +
+              '<div class="usr-handle">' + handle + (city ? ' · ' + city : '') + '</div>' +
+            '</div>' +
+          resultsEl.appendChild(item);
+        });
+      }
+    } catch (e) {
+      if (resultsEl) resultsEl.innerHTML = '<div style="padding:12px 16px;font-size:11px;color:var(--dim);text-align:center">Search unavailable</div>';
+    }
+  }
+
+  async function sendFriendRequest(userId, name, btn) {
+    if (!currentUser) { toast('Sign in to connect with friends'); return; }
+    try {
+      btn.textContent = 'Sending...';
+      btn.disabled    = true;
+      await db.from('friendships').insert({
+        requester_id: currentUser.id,
+        addressee_id: userId,
+        status:       'pending'
+      });
+      btn.textContent = 'Sent!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'rgba(122,224,168,0.3)';
+      toast('Friend request sent to ' + name);
+    } catch (e) {
+      if (e.message && e.message.includes('duplicate')) {
+        btn.textContent = 'Already sent';
+      } else {
+        btn.textContent = '+ Connect';
+        btn.disabled = false;
+        toast('Could not send request — try again');
+      }
+    }
+  }
+
+  // ── Friends grid ──────────────────────────────────────────
+  function renderFriends(list) {
+    const grid = document.getElementById('friendsGrid');
+    document.getElementById('resultsCount').textContent = `${list.length} friend${list.length !== 1 ? 's' : ''}`;
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-title">No friends found.</div><div class="empty-sub">Try adjusting your search or filter.</div></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(f => `
+      <div class="friend-card">
+        <div class="fc-top">
+          <div class="fc-av">${f.initial}${f.online ? '<div class="fc-online"></div>' : ''}</div>
+          <div class="fc-info">
+            <div class="fc-name">${f.name}</div>
+            <div class="fc-handle">${f.handle}</div>
+            <div class="fc-location">📍 ${f.location}</div>
+          </div>
+        </div>
+        <div class="fc-trips">
+          ${f.trips.length ? f.trips.map(t => `
+            <div class="fc-trip">
+              <div>
+                <div class="fc-trip-dest">${t.dest}</div>
+                <div class="fc-trip-dates">${t.dates}</div>
+              </div>
+              <div class="fc-trip-badge ${t.badge}">${t.badgeLabel}</div>
+            </div>
+          `).join('') : `<div class="fc-no-trips">No upcoming trips</div>`}
+        </div>
+        <div class="fc-mutual">${f.mutuals} mutual friend${f.mutuals !== 1 ? 's' : ''}</div>
+        <div class="fc-actions">
+          <button class="fc-btn gold" onclick="toast('Messaging coming in next release — stay tuned! For ${f.name}!')">Message</button>
+          <button class="fc-btn" onclick="toast('Viewing ${f.name}\'s profile!')">Profile</button>
+          <button class="fc-btn" onclick="confirmRemove(${f.id}, '${f.name}')">⋯</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterFriends(q) {
+    const filtered = FRIENDS.filter(f =>
+      f.name.toLowerCase().includes(q.toLowerCase()) ||
+      f.location.toLowerCase().includes(q.toLowerCase()) ||
+      f.handle.toLowerCase().includes(q.toLowerCase())
+    );
+    renderFriends(filtered);
+  }
+
+  function setSortActive(btn, sort) {
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    let sorted = [...FRIENDS];
+    if (sort === 'traveling') sorted = FRIENDS.filter(f => f.trips.some(t => t.badge === 'active' || t.badge === 'overlap'));
+    if (sort === 'overlap')   sorted = FRIENDS.filter(f => f.trips.some(t => t.badge === 'overlap'));
+    renderFriends(sorted);
+  }
+
+  function confirmRemove(id, name) {
+    toast(`Options for ${name} — remove/block coming soon`);
+  }
+
+  // ── Requests ──────────────────────────────────────────────
+  function renderRequests() {
+    const list = document.getElementById('requestsList');
+    list.innerHTML = REQUESTS_IN.map(r => `
+      <div class="request-item" id="req-${r.id}">
+        <div class="req-av">${r.initial}</div>
+        <div class="req-info">
+          <div class="req-name">${r.name} <span style="font-size:10px;color:var(--dim)">${r.handle}</span></div>
+          <div class="req-detail">📍 ${r.location}</div>
+          <div class="req-mutual">⚡ ${r.reason}</div>
+        </div>
+        <div class="req-actions">
+          <button class="req-accept" onclick="acceptRequest(${r.id}, '${r.name}')">Accept</button>
+          <button class="req-decline" onclick="declineRequest(${r.id}, '${r.name}')">Decline</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('sentList').innerHTML = REQUESTS_SENT.map(r => `
+      <div class="request-item">
+        <div class="req-av">${r.initial}</div>
+        <div class="req-info">
+          <div class="req-name">${r.name} <span style="font-size:10px;color:var(--dim)">${r.handle}</span></div>
+          <div class="req-detail">📍 ${r.location} · ${r.mutuals} mutual friends</div>
+          <div class="req-mutual" style="color:var(--dim)">Awaiting response…</div>
+        </div>
+        <div class="req-actions">
+          <button class="req-decline" onclick="toast('Request withdrawn')">Withdraw</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function acceptRequest(id, name) {
+    const el = document.getElementById(`req-${id}`);
+    if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }
+    const remaining = document.querySelectorAll('[id^="req-"]').length - 1;
+    document.getElementById('tabCountRequests').textContent = Math.max(0, remaining);
+    document.getElementById('reqBadge').textContent = Math.max(0, remaining);
+    if (remaining <= 0) document.getElementById('pendingBanner').style.display = 'none';
+    toast(`${name} is now a friend! ✈`);
+  }
+
+  function declineRequest(id, name) {
+    const el = document.getElementById(`req-${id}`);
+    if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }
+    toast(`Request from ${name} declined`);
+  }
+
+  // ── Discover ──────────────────────────────────────────────
+  function renderDiscover() {
+    document.getElementById('discoverGrid').innerHTML = DISCOVER.map(d => `
+      <div class="discover-card">
+        <div class="dc-top">
+          <div class="dc-av">${d.initial}</div>
+          <div>
+            <div class="dc-name">${d.name}</div>
+            <div class="dc-handle">${d.handle} · 📍 ${d.location}</div>
+          </div>
+        </div>
+        <div>
+          <div class="dc-reason">${d.reason}</div>
+        </div>
+        <div class="dc-mutual">${d.mutuals > 0 ? `${d.mutuals} mutual friend${d.mutuals > 1 ? 's' : ''}` : 'No mutual friends yet'}</div>
+        <button class="dc-add" id="dc-btn-${d.id}" onclick="sendRequest(${d.id}, '${d.name}')">+ Add Friend</button>
+      </div>
+    `).join('');
+  }
+
+  function sendRequest(id, name) {
+    const btn = document.getElementById(`dc-btn-${id}`);
+    if (sentRequests.has(id)) return;
+    sentRequests.add(id);
+    btn.textContent = '✓ Request Sent';
+    btn.classList.add('sent');
+    toast(`Friend request sent to ${name}!`);
+  }
+
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    document.getElementById('panel-'+tab).classList.add('active');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.querySelectorAll('a,button,input,.friend-card,.discover-card,.request-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)'; });
+    el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)'; });
+  });
+
+
+  // Close user search when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.user-search-wrap')) {
+      const r = document.getElementById('userSearchResults');
+      if (r) r.style.display = 'none';
+    }
+  });
+
+  init();
+
+  // Page load transition
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('done');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 400);
+  });
+
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+</script>
+</body>
+</html>

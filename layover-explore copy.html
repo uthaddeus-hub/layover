@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Explore</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.13);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --blue: #7aaee0; --sidebar: 220px;
+    }
+    html, body { height: var(--app-height, 100vh); }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height, 100vh); }
+
+    /* SIDEBAR */
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; height: 60%; width: 2px; background: var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--night); font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--green); margin-top: 1px; }
+
+    /* MAIN */
+    main { overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+
+    /* ── VIEW STATES ── */
+    /* Hub view (city grid) and city-detail view */
+    #hubView  { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    #cityView { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+
+    /* ─── HUB VIEW ─── */
+    .hub-topbar { padding: 20px 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); }
+    .hub-topbar h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; }
+    .hub-topbar h1 em { font-style: italic; color: var(--gold); }
+    .hub-topbar p { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; margin-top: 3px; }
+
+    /* Search bar */
+    .hub-search-row { padding: 18px 36px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; flex-shrink: 0; background: var(--deep); }
+    .search-wrap { position: relative; flex: 1; max-width: 460px; }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; color: var(--dim); }
+    .search-input { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 11px 14px 11px 36px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .search-input:focus { border-color: rgba(201,168,76,0.4); }
+    .search-input::placeholder { color: var(--dim); }
+    .filter-btn { background: var(--card); border: 1px solid var(--border); padding: 0 18px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .filter-btn:hover, .filter-btn.active { border-color: rgba(201,168,76,0.3); color: var(--gold); background: var(--gold-dim); }
+
+    /* City grid */
+    .hub-scroll { flex: 1; overflow-y: auto; padding: 28px 36px 36px; }
+    .hub-scroll::-webkit-scrollbar { width: 4px; }
+    .hub-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .region-label { font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .region-label::before { content: ''; width: 20px; height: 1px; background: var(--gold); display: block; }
+    .city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 36px; }
+
+    .city-card {
+      background: var(--card); padding: 24px 22px;
+      cursor: none; position: relative; overflow: hidden;
+      transition: background 0.2s;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .city-card:hover { background: var(--card2); }
+    .city-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform 0.25s; }
+    .city-card:hover::after { transform: scaleX(1); }
+    .city-card.has-friend { border-top: 2px solid rgba(201,168,76,0.4); }
+
+    .cc-emoji { font-size: 26px; line-height: 1; }
+    .cc-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; line-height: 1; }
+    .cc-country { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+
+    .cc-friends { display: flex; align-items: center; gap: 0; }
+    .cc-av { width: 20px; height: 20px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid var(--card); margin-right: -5px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--gold); transition: border-color 0.2s; }
+    .city-card:hover .cc-av { border-color: var(--card2); }
+    .cc-friends-label { font-size: 10px; color: var(--muted); margin-left: 14px; letter-spacing: 0.04em; }
+
+    .cc-pulse { position: absolute; top: 14px; right: 14px; width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+    .cc-pulse::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 1px solid rgba(122,224,168,0.4); animation: pulse 2s ease-out infinite; }
+    @keyframes pulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2)} }
+
+    .cc-upcoming { font-size: 9px; letter-spacing: 0.1em; color: var(--blue); background: rgba(122,174,224,0.07); border: 1px solid rgba(122,174,224,0.15); padding: 3px 9px; display: inline-block; }
+    .cc-visiting { font-size: 9px; letter-spacing: 0.1em; color: var(--gold); background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2); padding: 3px 9px; display: inline-block; }
+
+    /* ─── CITY DETAIL VIEW ─── */
+    .city-topbar { padding: 16px 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-shrink: 0; background: rgba(10,10,15,0.95); backdrop-filter: blur(12px); }
+    .back-btn { background: none; border: 1px solid var(--border); padding: 8px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .back-btn:hover { border-color: rgba(255,255,255,0.18); color: var(--cream); }
+    .city-breadcrumb { font-size: 10px; color: var(--dim); letter-spacing: 0.12em; }
+    .city-breadcrumb span { color: var(--gold); }
+    .cb-actions { margin-left: auto; display: flex; gap: 10px; }
+    .btn-gold { background: var(--gold); border: none; padding: 10px 22px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--night); cursor: none; transition: all 0.2s; }
+    .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
+    .btn-ghost { background: none; border: 1px solid var(--border); padding: 10px 18px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: var(--cream); }
+
+    /* City hero */
+    .city-hero { position: relative; overflow: hidden; background: var(--deep); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .city-hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px); background-size: 40px 40px; pointer-events: none; }
+    .city-hero-glow { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); width: 600px; height: 200px; background: radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 65%); pointer-events: none; }
+    .city-hero-body { position: relative; padding: 32px 36px 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+    .city-hero-left { }
+    .city-flag { font-size: 38px; line-height: 1; margin-bottom: 10px; }
+    .city-name-big { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; line-height: 1; }
+    .city-country-line { font-size: 11px; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
+    .city-live-badge { display: inline-flex; align-items: center; gap: 7px; background: rgba(122,224,168,0.07); border: 1px solid rgba(122,224,168,0.2); padding: 5px 14px; font-size: 9px; letter-spacing: 0.18em; color: var(--green); text-transform: uppercase; margin-top: 12px; }
+    .live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+    .city-hero-stats { display: flex; gap: 0; }
+    .ch-stat { padding: 16px 24px; text-align: center; border-left: 1px solid var(--border2); }
+    .ch-stat:first-child { border-left: none; }
+    .ch-stat-val { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; color: var(--cream); }
+    .ch-stat-lbl { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+
+    /* City detail content */
+    .city-content { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 300px; gap: 0; }
+    .city-content::-webkit-scrollbar { width: 4px; }
+    .city-content::-webkit-scrollbar-thumb { background: var(--border); }
+    .city-main { padding: 28px 32px; border-right: 1px solid var(--border); overflow-y: auto; }
+    .city-main::-webkit-scrollbar { width: 4px; }
+    .city-main::-webkit-scrollbar-thumb { background: var(--border); }
+    .city-sidebar { padding: 24px 24px; overflow-y: auto; }
+    .city-sidebar::-webkit-scrollbar { width: 4px; }
+    .city-sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .sec-label { font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .sec-label::before { content: ''; width: 18px; height: 1px; background: var(--gold); display: block; }
+
+    /* Who's there */
+    .whos-there { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+    .wt-card { background: var(--card); border: 1px solid var(--border); padding: 16px 18px; display: flex; align-items: center; gap: 14px; cursor: none; transition: all 0.2s; }
+    .wt-card:hover { background: var(--card2); border-color: rgba(201,168,76,0.2); }
+    .wt-av { width: 36px; height: 36px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold); flex-shrink: 0; position: relative; }
+    .wt-online { position: absolute; bottom: 1px; right: 1px; width: 9px; height: 9px; background: var(--green); border-radius: 50%; border: 2px solid var(--card); }
+    .wt-info { flex: 1; }
+    .wt-name { font-size: 12px; color: var(--cream); }
+    .wt-dates { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 0.05em; }
+    .wt-overlap { font-size: 9px; color: var(--gold); background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.18); padding: 3px 10px; letter-spacing: 0.1em; flex-shrink: 0; }
+    .wt-msg-btn { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); background: none; border: 1px solid var(--border); padding: 7px 14px; cursor: none; font-family: 'DM Mono', monospace; transition: all 0.2s; text-transform: uppercase; }
+    .wt-msg-btn:hover { color: var(--gold); border-color: rgba(201,168,76,0.3); }
+
+    /* Tips grid */
+    .tips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 32px; }
+    .tip-card { background: var(--card); padding: 18px; cursor: none; transition: background 0.2s; }
+    .tip-card:hover { background: var(--card2); }
+    .tip-tag { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.15); padding: 3px 9px; display: inline-block; margin-bottom: 9px; }
+    .tip-place { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; margin-bottom: 4px; }
+    .tip-desc { font-size: 10px; color: var(--muted); line-height: 1.6; letter-spacing: 0.03em; }
+    .tip-author { font-size: 9px; color: var(--dim); margin-top: 10px; }
+    .tip-add { background: var(--deep); border: 1px dashed rgba(255,255,255,0.06); padding: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: none; transition: all 0.2s; }
+    .tip-add:hover { border-color: rgba(201,168,76,0.25); background: var(--gold-dim); }
+    .tip-add-label { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* Timeline */
+    .activity-feed { display: flex; flex-direction: column; gap: 0; }
+    .af-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border2); }
+    .af-item:last-child { border-bottom: none; }
+    .af-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .af-text { font-size: 11px; color: var(--muted); line-height: 1.6; }
+    .af-text strong { color: var(--cream); }
+    .af-time { font-size: 9px; color: var(--dim); letter-spacing: 0.06em; margin-top: 3px; }
+
+    /* Sidebar widgets */
+    .cs-widget { background: var(--card); border: 1px solid var(--border); margin-bottom: 16px; }
+    .cs-widget-header { padding: 12px 16px; border-bottom: 1px solid var(--border2); }
+    .cs-widget-title { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .cs-widget-title::before { content: ''; width: 14px; height: 1px; background: var(--gold); display: block; }
+    .cs-widget-body { padding: 14px 16px; }
+
+    .weather-display { text-align: center; padding: 8px 0; }
+    .weather-icon { font-size: 36px; margin-bottom: 6px; }
+    .weather-temp { font-family: 'Cormorant Garamond', serif; font-size: 38px; font-weight: 300; }
+    .weather-desc { font-size: 10px; color: var(--muted); margin-top: 3px; letter-spacing: 0.1em; }
+    .weather-row { display: flex; justify-content: space-around; margin-top: 14px; border-top: 1px solid var(--border2); padding-top: 12px; }
+    .weather-cell { text-align: center; }
+    .weather-cell-val { font-size: 12px; color: var(--cream); }
+    .weather-cell-lbl { font-size: 9px; color: var(--dim); margin-top: 2px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    .best-time-bars { display: flex; flex-direction: column; gap: 7px; }
+    .bt-row { display: flex; align-items: center; gap: 10px; }
+    .bt-month { font-size: 10px; color: var(--dim); width: 28px; flex-shrink: 0; }
+    .bt-bar-wrap { flex: 1; height: 6px; background: var(--deep); border-radius: 0; overflow: hidden; }
+    .bt-bar { height: 100%; background: var(--gold); opacity: 0.3; transition: opacity 0.2s; }
+    .bt-bar.peak { opacity: 1; }
+    .bt-row:hover .bt-bar { opacity: 0.7; }
+
+    .quick-facts { display: flex; flex-direction: column; gap: 10px; }
+    .qf-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border2); }
+    .qf-row:last-child { border-bottom: none; }
+    .qf-label { font-size: 10px; color: var(--muted); }
+    .qf-val { font-size: 10px; color: var(--cream); text-align: right; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid rgba(201,168,76,0.3); padding: 12px 18px; font-size: 11px; color: var(--cream); z-index: 1000; transform: translateY(12px); opacity: 0; transition: all 0.28s; letter-spacing: 0.06em; }
+    .toast.show { transform: none; opacity: 1; }
+
+    .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.35s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+    /* ══════════════════════════════════════════
+       MOBILE RESPONSIVE — all breakpoints
+    ══════════════════════════════════════════ */
+    .mob-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--deep); border-top: 1px solid var(--border);
+      z-index: 100; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    }
+    .mob-nav-inner { display: flex; justify-content: space-around; }
+    .mob-tab { display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none; padding: 6px 12px; cursor: pointer;
+      transition: color 0.2s; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .mob-tab .mt-icon { font-size: 18px; }
+    .mob-tab.active { color: var(--gold); }
+    .mob-tab:hover { color: var(--cream); }
+
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .mob-nav { display: block; }
+      .shell { grid-template-columns: 1fr !important; }
+      main, .messages-shell, #hubView, #cityView { padding-bottom: 70px; }
+
+      /* Dashboard mobile */
+      .topbar { padding: 14px 16px; }
+      .main-grid { grid-template-columns: 1fr !important; }
+      .right-col { display: none; }
+      .trip-grid { grid-template-columns: 1fr !important; }
+      .stats-row { gap: 8px; }
+      .stat-card { padding: 14px 12px; }
+      .stat-num { font-size: 24px; }
+
+      /* Messages mobile */
+      .messages-shell { grid-template-columns: 1fr !important; }
+      .conv-list-panel { display: none; }
+      .conv-list-panel.mob-show { display: flex !important; position: fixed; inset: 0 0 70px 0; z-index: 50; }
+      #activeChatWrap { height: calc(100vh - 70px) !important; }
+      .chat-header { padding: 12px 16px; }
+      .chat-messages { padding: 12px 16px; }
+      .chat-footer { padding: 10px 16px 14px; }
+      .overlap-banner { margin: 8px 16px; }
+
+      /* Trip detail mobile */
+      .trip-content { grid-template-columns: 1fr !important; }
+      .chat-panel { height: 500px !important; }
+      .section-block { padding: 20px 16px; }
+      .trip-hero { padding: 20px 16px 16px; }
+      .trip-hero-top { flex-direction: column; gap: 12px; }
+      .trip-stat-row { gap: 16px; }
+
+      /* Friends mobile */
+      .friends-grid { grid-template-columns: 1fr !important; }
+      .discover-grid { grid-template-columns: 1fr !important; }
+      .content { padding: 16px !important; }
+      .topbar { flex-wrap: wrap; gap: 10px; }
+      .topbar-right { width: 100%; }
+      .topbar-right button, .topbar-right a { flex: 1; text-align: center; }
+
+      /* Profile mobile */
+      .profile-body { padding: 0 16px 20px; }
+      .avatar-actions { flex-wrap: wrap; gap: 8px; }
+      .pa-btn { font-size: 9px; padding: 8px 12px; }
+      .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat-box { padding: 12px 0; }
+      .profile-name { font-size: 28px; }
+      .content { grid-template-columns: 1fr !important; }
+      .right-col { order: -1; }
+
+      /* Explore mobile */
+      .hub-topbar { padding: 14px 16px; }
+      .hub-search-row { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .hub-scroll { padding: 16px; }
+      .city-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .city-topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .city-content { grid-template-columns: 1fr !important; }
+      .city-main { padding: 16px; }
+      .city-sidebar { padding: 16px; border-right: none; border-top: 1px solid var(--border); }
+      .city-hero-body { flex-direction: column; gap: 16px; }
+      .city-hero-stats { flex-wrap: wrap; }
+      .city-name-big { font-size: 36px; }
+
+      /* General modals */
+      .modal { width: 95vw !important; margin: 0 auto; max-height: 92vh; }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 0 16px 16px; }
+
+      /* Hide cursor on mobile */
+      .cursor, .cursor-ring { display: none; }
+
+      /* Tab bars */
+      .page-tabs, .tab-bar { padding: 0 16px; overflow-x: auto; }
+      .ptab, .tbar-item { white-space: nowrap; }
+    }
+
+    @media (max-width: 480px) {
+      .city-grid { grid-template-columns: 1fr !important; }
+      .steps-grid { grid-template-columns: 1fr !important; }
+      .features-grid { grid-template-columns: 1fr !important; }
+      h1 { font-size: clamp(36px, 10vw, 72px) !important; }
+      .section-title { font-size: clamp(24px, 6vw, 40px) !important; }
+      .signup-card { padding: 24px 18px !important; }
+      .form-row { grid-template-columns: 1fr !important; }
+    }
+
+
+    /* LOADING STATES */
+    .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content: ''; position: absolute; left: -40%; width: 40%; height: 100%; background: var(--gold); animation: plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+
+
+    /* ── MOBILE VIEWPORT FIX ──────────────────────────────── */
+    /* Fixes the cutoff on mobile browsers (address bar, bottom chrome) */
+    :root {
+      --app-height: 100vh; /* overridden by JS below */
+    }
+    @supports (height: 100dvh) {
+      :root { --app-height: 100dvh; }
+    }
+    @media (max-width: 768px) {
+      html { height: -webkit-fill-available; }
+      body { 
+        height: var(--app-height) !important; 
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      .shell { 
+        height: var(--app-height) !important; 
+        min-height: var(--app-height);
+        overflow: hidden;
+      }
+      main {
+        height: auto !important;
+        min-height: calc(var(--app-height) - 70px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 16px)) !important;
+      }
+      /* Messages special case — needs full height chat */
+      .messages-shell {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      #activeChatWrap {
+        height: calc(var(--app-height) - 70px) !important;
+      }
+      /* Fix any overflow hidden on containers */
+      .trip-content,
+      .city-content,
+      .hub-scroll,
+      .conv-list,
+      .chat-messages {
+        -webkit-overflow-scrolling: touch;
+      }
+      /* Bottom nav safe area */
+      .mob-nav {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+      }
+      /* Prevent horizontal scroll */
+      * { max-width: 100%; }
+      img, video { max-width: 100%; height: auto; }
+    }
+
+
+    /* GLOBAL CITY SEARCH */
+    .search-result-item { padding: 11px 16px; display: flex; align-items: center; gap: 12px; cursor: none; transition: background 0.15s; border-bottom: 1px solid var(--border2); }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: var(--card2); }
+    .sr-flag { font-size: 18px; flex-shrink: 0; }
+    .sr-info { flex: 1; }
+    .sr-city { font-size: 12px; color: var(--cream); }
+    .sr-country { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .sr-explore { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); flex-shrink: 0; }
+    .search-result-loading { padding: 14px 16px; font-size: 11px; color: var(--dim); text-align: center; letter-spacing: 0.08em; }
+    .search-result-empty { padding: 14px 16px; font-size: 11px; color: var(--dim); text-align: center; }
+    .search-wrap { position: relative; }
+
+  </style>
+</head>
+<body>
+<!-- PAGE LOADING SCREEN -->
+<div class="page-loading" id="pageLoader">
+  <div class="pl-logo">LAY<span>◆</span>VER</div>
+  <div class="pl-bar"></div>
+</div>
+
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item active"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+            <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-map.html" class="nav-item"><span class="nav-icon">🗺</span> Map</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+      <a href="#" class="nav-item" onclick="toast?toast('Settings coming in next release!'):showToast('Settings coming in next release!')"><span class="nav-icon">⚙️</span> Settings</a>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">…</div>
+          <div class="user-status">● Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ════ HUB VIEW ════ -->
+    <div id="hubView">
+      <div class="hub-topbar">
+        <div>
+          <h1>Ex<em>plore.</em></h1>
+          <p>See where your friends are — and where you should go next.</p>
+        </div>
+      </div>
+
+      <div class="hub-search-row">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Search any city in the world…" oninput="handleCitySearch(this.value)" id="citySearchInput" autocomplete="off"/>
+          <div id="globalSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid rgba(201,168,76,0.2);border-top:none;z-index:50;max-height:320px;overflow-y:auto"></div>
+        </div>
+        <button class="filter-btn active" onclick="setFilter(this,'all')">All Cities</button>
+        <button class="filter-btn" onclick="setFilter(this,'friends')">Friends There</button>
+        <button class="filter-btn" onclick="setFilter(this,'visited')">Been There</button>
+        <button class="filter-btn" onclick="setFilter(this,'bucket')">Bucket List</button>
+      </div>
+
+      <div class="hub-scroll" id="hubScroll">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ════ CITY DETAIL VIEW ════ -->
+    <div id="cityView">
+      <div class="city-topbar">
+        <button class="back-btn" onclick="showHub()">← Back</button>
+        <div class="city-breadcrumb">Explore → <span id="cvBreadcrumb">Tokyo</span></div>
+        <div class="cb-actions">
+          <button class="btn-ghost" onclick="toast('Added to bucket list! 🌍')">Bucket List</button>
+          <button class="btn-gold" onclick="toast('Opening Add Trip for this city!')">Plan a Trip →</button>
+        </div>
+      </div>
+
+      <div class="city-hero">
+        <div class="city-hero-grid"></div>
+        <div class="city-hero-glow"></div>
+        <div class="city-hero-body">
+          <div class="city-hero-left">
+            <div class="city-flag" id="cvFlag">🇯🇵</div>
+            <div class="city-name-big" id="cvName">Tokyo</div>
+            <div class="city-country-line" id="cvCountry">Japan · Asia</div>
+            <div class="city-live-badge" id="cvLiveBadge">
+              <div class="live-dot"></div>
+              <span id="cvLiveText">2 friends here now</span>
+            </div>
+          </div>
+          <div class="city-hero-stats">
+            <div class="ch-stat"><div class="ch-stat-val" id="cvFriendCount">2</div><div class="ch-stat-lbl">Friends Here</div></div>
+            <div class="ch-stat"><div class="ch-stat-val" id="cvUpcoming">3</div><div class="ch-stat-lbl">Going Soon</div></div>
+            <div class="ch-stat"><div class="ch-stat-val" id="cvVisited">1</div><div class="ch-stat-lbl">You've Visited</div></div>
+            <div class="ch-stat"><div class="ch-stat-val" id="cvTips">8</div><div class="ch-stat-lbl">Tips</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="city-content">
+        <!-- LEFT: main content -->
+        <div class="city-main">
+
+          <div class="sec-label">Who's There</div>
+          <div class="whos-there" id="cvWhosThere"></div>
+
+          <div class="sec-label">Friend Tips</div>
+          <div class="tips-grid" id="cvTipsGrid"></div>
+
+          <div class="sec-label" style="margin-top:28px">Recent Activity</div>
+          <div class="activity-feed" id="cvFeed"></div>
+
+        </div>
+
+        <!-- RIGHT: sidebar -->
+        <div class="city-sidebar">
+
+          <div class="cs-widget">
+            <div class="cs-widget-header"><div class="cs-widget-title">Weather Now</div></div>
+            <div class="cs-widget-body">
+              <div class="weather-display">
+                <div class="weather-icon" id="cvWeatherIcon">☀️</div>
+                <div class="weather-temp" id="cvWeatherTemp">72°</div>
+                <div class="weather-desc" id="cvWeatherDesc">Clear · Tokyo</div>
+              </div>
+              <div class="weather-row">
+                <div class="weather-cell"><div class="weather-cell-val" id="cvHumidity">68%</div><div class="weather-cell-lbl">Humidity</div></div>
+                <div class="weather-cell"><div class="weather-cell-val" id="cvWind">8mph</div><div class="weather-cell-lbl">Wind</div></div>
+                <div class="weather-cell"><div class="weather-cell-val" id="cvFeels">70°</div><div class="weather-cell-lbl">Feels</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cs-widget">
+            <div class="cs-widget-header"><div class="cs-widget-title">Best Time to Visit</div></div>
+            <div class="cs-widget-body">
+              <div class="best-time-bars" id="cvBestTime"></div>
+            </div>
+          </div>
+
+          <div class="cs-widget">
+            <div class="cs-widget-header"><div class="cs-widget-title">Quick Facts</div></div>
+            <div class="cs-widget-body">
+              <div class="quick-facts" id="cvFacts"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  // ── City data ─────────────────────────────────────────────
+  const CITIES = [
+    {
+      id:'tokyo',    name:'Tokyo',    flag:'🇯🇵', country:'Japan',   region:'Asia',
+      friends:[{n:'Alex',i:'A',online:true,dates:'Mar 10–18'},{n:'Yuki',i:'Y',online:true,dates:'Mar 8–20'}],
+      upcoming:3, visited:true, bucket:false,
+      weather:{icon:'☀️',temp:'68°',desc:'Clear',humidity:'62%',wind:'5mph',feels:'66°'},
+      bestTime:[0.4,0.4,0.7,1,0.9,0.5,0.5,0.6,0.9,0.8,0.5,0.3],
+      facts:[['Time Zone','JST (UTC+9)'],['Currency','¥ Yen'],['Language','Japanese'],['Best For','Food, culture, tech']],
+      tips:[
+        {tag:'Food',place:'Ichiran Ramen',desc:'Solo ramen booths in Shibuya. Go at midnight — no wait.',author:'Alex Chen'},
+        {tag:'Culture',place:'Senso-ji Temple',desc:'Arrive before 8am to beat the crowds entirely.',author:'Yuki Tanaka'},
+        {tag:'Nightlife',place:'Golden Gai',desc:'Six tiny alleyways, 200 bars. Each holds about 8 people.',author:'Alex Chen'},
+        {tag:'Coffee',place:'Onibus Coffee',desc:'Best single-origin pour-overs in Nakameguro.',author:'Yuki Tanaka'},
+      ],
+      feed:[
+        {av:'A',text:'<strong>Alex Chen</strong> added a tip: Ichiran Ramen',time:'2h ago'},
+        {av:'Y',text:'<strong>Yuki Tanaka</strong> checked in to Tokyo',time:'4h ago'},
+        {av:'A',text:'<strong>Alex Chen</strong> started a trip to Tokyo',time:'2 days ago'},
+      ]
+    },
+    {
+      id:'london',   name:'London',   flag:'🇬🇧', country:'UK',      region:'Europe',
+      friends:[{n:'Julia',i:'J',online:true,dates:'Apr 2–6'}],
+      upcoming:2, visited:true, bucket:false,
+      weather:{icon:'🌧',temp:'54°',desc:'Overcast',humidity:'78%',wind:'12mph',feels:'50°'},
+      bestTime:[0.3,0.3,0.5,0.7,0.8,0.9,0.8,0.8,0.7,0.6,0.4,0.3],
+      facts:[['Time Zone','GMT (UTC+0)'],['Currency','£ Pound'],['Language','English'],['Best For','History, pubs, parks']],
+      tips:[
+        {tag:'Food',place:'Borough Market',desc:'Saturday morning. Get there early for the good stuff.',author:'Julia Santos'},
+        {tag:'Culture',place:'Tate Modern',desc:'Free entry. The Turbine Hall installations are always worth it.',author:'Julia Santos'},
+        {tag:'Nightlife',place:'Dalston',desc:'Best cocktail bars in the city, without the Soho markup.',author:'Julia Santos'},
+        {tag:'Coffee',place:'Monmouth Coffee',desc:'The Borough Market outpost has the best queue-to-quality ratio.',author:'Julia Santos'},
+      ],
+      feed:[
+        {av:'J',text:'<strong>Julia Santos</strong> added a tip: Borough Market',time:'1 day ago'},
+        {av:'J',text:'<strong>Julia Santos</strong> planned a trip to London',time:'3 days ago'},
+      ]
+    },
+    {
+      id:'newark',   name:'Newark',   flag:'🇺🇸', country:'USA',     region:'North America',
+      friends:[{n:'Alex',i:'A',online:true,dates:'Mar 14–22'},{n:'Thad',i:'T',online:false,dates:'Mar 15–17'}],
+      upcoming:1, visited:true, bucket:false,
+      weather:{icon:'🌤',temp:'48°',desc:'Partly cloudy',humidity:'55%',wind:'9mph',feels:'45°'},
+      bestTime:[0.4,0.4,0.5,0.7,0.8,0.9,0.9,0.9,0.8,0.7,0.5,0.4],
+      facts:[['Time Zone','EST (UTC-5)'],['Currency','$ Dollar'],['Language','English'],['Best For','Food, culture, NYC gateway']],
+      tips:[
+        {tag:'Food',place:'Hobby\'s Deli',desc:'Classic Newark deli, been open since 1962. The pastrami is legendary.',author:'Thad Williams'},
+        {tag:'Culture',place:'Newark Museum of Art',desc:'Huge collection, never crowded. Tibetan art wing is a hidden gem.',author:'Alex Chen'},
+        {tag:'Coffee',place:'Hank\'s Cafe',desc:'Best espresso near Penn Station. Cash only.',author:'Thad Williams'},
+        {tag:'Nightlife',place:'Brick City Bar',desc:'Local spot, good vibes, cheap drinks.',author:'Alex Chen'},
+      ],
+      feed:[
+        {av:'T',text:'<strong>Thad Williams</strong> checked in to Newark',time:'6h ago'},
+        {av:'A',text:'<strong>Alex Chen</strong> added a tip: Newark Museum of Art',time:'1 day ago'},
+        {av:'A',text:'<strong>Alex Chen</strong> started a trip to Newark',time:'2 days ago'},
+      ]
+    },
+    {
+      id:'paris',    name:'Paris',    flag:'🇫🇷', country:'France',  region:'Europe',
+      friends:[], upcoming:1, visited:true, bucket:false,
+      weather:{icon:'🌥',temp:'57°',desc:'Mostly cloudy',humidity:'70%',wind:'7mph',feels:'54°'},
+      bestTime:[0.3,0.4,0.6,0.8,0.9,1,0.9,0.9,0.8,0.7,0.4,0.3],
+      facts:[['Time Zone','CET (UTC+1)'],['Currency','€ Euro'],['Language','French'],['Best For','Art, food, romance']],
+      tips:[
+        {tag:'Food',place:'Breizh Café',desc:'Best crêpes in the Marais. Get the buckwheat galette with egg.',author:'You'},
+        {tag:'Art',place:'Musée d\'Orsay',desc:'Go on Thursday evenings — stays open late and half the crowd.',author:'You'},
+        {tag:'Coffee',place:'Café de Flore',desc:'Historic, touristy, but the croissants justify it once.',author:'You'},
+        {tag:'Neighborhood',place:'Belleville',desc:'Street art, cheap wine bars, real Paris energy.',author:'You'},
+      ],
+      feed:[
+        {av:'Y',text:'<strong>You</strong> completed a trip to Paris',time:'Dec 2024'},
+        {av:'Y',text:'<strong>You</strong> added 4 tips for Paris',time:'Dec 2024'},
+      ]
+    },
+    {
+      id:'berlin',   name:'Berlin',   flag:'🇩🇪', country:'Germany', region:'Europe',
+      friends:[], upcoming:0, visited:true, bucket:false,
+      weather:{icon:'🌧',temp:'44°',desc:'Rainy',humidity:'82%',wind:'14mph',feels:'40°'},
+      bestTime:[0.3,0.3,0.4,0.6,0.8,0.9,1,0.9,0.7,0.5,0.3,0.3],
+      facts:[['Time Zone','CET (UTC+1)'],['Currency','€ Euro'],['Language','German'],['Best For','Nightlife, history, art']],
+      tips:[
+        {tag:'Nightlife',place:'Berghain',desc:'Sunday morning is actually easier to get in than Saturday night.',author:'You'},
+        {tag:'Food',place:'Mustafa\'s Gemüse',desc:'The döner queue is always long. Always worth it.',author:'You'},
+        {tag:'Culture',place:'East Side Gallery',desc:'Best section of the Wall. Go at sunrise.',author:'You'},
+        {tag:'Coffee',place:'The Barn',desc:'Specialty coffee roastery. The Mitte location is the best.',author:'You'},
+      ],
+      feed:[
+        {av:'Y',text:'<strong>You</strong> completed a trip to Berlin',time:'Oct 2024'},
+      ]
+    },
+    {
+      id:'lisbon',   name:'Lisbon',   flag:'🇵🇹', country:'Portugal', region:'Europe',
+      friends:[{n:'Priya',i:'P',online:true,dates:'Mar 12–19'},{n:'Julia',i:'J',online:false,dates:'Mar 14–18'}],
+      upcoming:2, visited:true, bucket:false,
+      weather:{icon:'🌤',temp:'63°',desc:'Partly sunny',humidity:'65%',wind:'10mph',feels:'61°'},
+      bestTime:[0.5,0.5,0.6,0.8,0.9,1,1,1,0.9,0.8,0.6,0.5],
+      facts:[['Time Zone','WET (UTC+0)'],['Currency','€ Euro'],['Language','Portuguese'],['Best For','Food, wine, architecture']],
+      tips:[
+        {tag:'Food',place:'Time Out Market',desc:'Skip the tourist traps, go here. Every stall is vetted.',author:'You'},
+        {tag:'Views',place:'Miradouro da Graça',desc:'Less crowded than São Pedro de Alcântara, better sunset.',author:'You'},
+        {tag:'Wine',place:'By the Wine',desc:'All Portuguese wines, by the glass. The Douro whites are special.',author:'You'},
+        {tag:'Day Trip',place:'Cascais',desc:'40min train from Cais do Sodré. Bring a towel.',author:'You'},
+      ],
+      feed:[
+        {av:'P',text:'<strong>Priya Nair</strong> checked in to Lisbon',time:'3h ago'},
+        {av:'J',text:'<strong>Julia Santos</strong> started a trip to Lisbon',time:'1 day ago'},
+        {av:'Y',text:'<strong>You</strong> visited Lisbon',time:'Sep 2024'},
+      ]
+    },
+    {
+      id:'austin',   name:'Austin',   flag:'🇺🇸', country:'USA',     region:'North America',
+      friends:[{n:'Marcus',i:'M',online:false,dates:'Mar 3–8'}],
+      upcoming:0, visited:true, bucket:false,
+      weather:{icon:'☀️',temp:'74°',desc:'Sunny',humidity:'45%',wind:'11mph',feels:'72°'},
+      bestTime:[0.7,0.7,0.8,0.9,0.8,0.7,0.5,0.5,0.8,0.9,0.8,0.7],
+      facts:[['Time Zone','CST (UTC-6)'],['Currency','$ Dollar'],['Language','English'],['Best For','Music, BBQ, outdoors']],
+      tips:[
+        {tag:'BBQ',place:'Terry Black\'s',desc:'Get there when they open. The brisket sells out by 2pm.',author:'Marcus Lee'},
+        {tag:'Music',place:'6th Street',desc:'Wednesday nights are underrated — no cover at most venues.',author:'Marcus Lee'},
+        {tag:'Coffee',place:'Cuvée Coffee',desc:'The North Loop location has the best batch brew in town.',author:'You'},
+        {tag:'Outdoors',place:'Barton Springs',desc:'Natural swimming hole in the middle of the city. Free on weekdays.',author:'Marcus Lee'},
+      ],
+      feed:[
+        {av:'M',text:'<strong>Marcus Lee</strong> visited Austin recently',time:'Mar 2025'},
+        {av:'Y',text:'<strong>You</strong> visited Austin',time:'Nov 2024'},
+      ]
+    },
+    {
+      id:'singapore',name:'Singapore',flag:'🇸🇬', country:'Singapore',region:'Asia',
+      friends:[], upcoming:0, visited:false, bucket:true,
+      weather:{icon:'🌦',temp:'88°',desc:'Humid, showers',humidity:'84%',wind:'6mph',feels:'95°'},
+      bestTime:[0.6,0.7,0.7,0.8,0.8,0.7,0.7,0.8,0.8,0.8,0.7,0.6],
+      facts:[['Time Zone','SGT (UTC+8)'],['Currency','S$ Dollar'],['Language','English, Malay, Mandarin'],['Best For','Food, architecture, transit hub']],
+      tips:[],
+      feed:[]
+    },
+    {
+      id:'barcelona',name:'Barcelona',flag:'🇪🇸', country:'Spain',  region:'Europe',
+      friends:[], upcoming:0, visited:false, bucket:true,
+      weather:{icon:'☀️',temp:'64°',desc:'Sunny',humidity:'58%',wind:'8mph',feels:'62°'},
+      bestTime:[0.5,0.5,0.7,0.8,0.9,1,1,1,0.9,0.8,0.6,0.5],
+      facts:[['Time Zone','CET (UTC+1)'],['Currency','€ Euro'],['Language','Spanish, Catalan'],['Best For','Architecture, beach, food']],
+      tips:[],
+      feed:[]
+    },
+    {
+      id:'dubai',    name:'Dubai',    flag:'🇦🇪', country:'UAE',    region:'Middle East',
+      friends:[{n:'Aisha',i:'A',online:true,dates:'Mar 10–20'}],
+      upcoming:1, visited:false, bucket:true,
+      weather:{icon:'☀️',temp:'82°',desc:'Clear',humidity:'48%',wind:'9mph',feels:'80°'},
+      bestTime:[0.9,0.9,0.9,0.8,0.6,0.4,0.3,0.3,0.5,0.8,0.9,0.9],
+      facts:[['Time Zone','GST (UTC+4)'],['Currency','AED Dirham'],['Language','Arabic, English'],['Best For','Architecture, luxury, desert']],
+      tips:[],
+      feed:[]
+    },
+  ];
+
+  let activeFilter = 'all';
+  let currentCity = null;
+
+  // ── Init ──────────────────────────────────────────────────
+  async function init() {
+    const { data:{ session } } = await db.auth.getSession();
+    if (session) {
+      const meta = session.user.user_metadata || {};
+      const name = meta.first_name || session.user.email.split('@')[0];
+      document.getElementById('sidebarName').textContent = name;
+      document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+    }
+    renderHub(CITIES);
+  }
+
+  // ── Render Hub ────────────────────────────────────────────
+  function renderHub(cities) {
+    const scroll = document.getElementById('hubScroll');
+
+    const regions = [...new Set(cities.map(c => c.region))];
+    scroll.innerHTML = regions.map(region => {
+      const regionCities = cities.filter(c => c.region === region);
+      return `
+        <div class="region-label">${region}</div>
+        <div class="city-grid">
+          ${regionCities.map(c => `
+            <div class="city-card ${c.friends.length > 0 ? 'has-friend' : ''}" onclick="openCity('${c.id}')">
+              ${c.friends.some(f => f.online) ? '<div class="cc-pulse"></div>' : ''}
+              <div class="cc-emoji">${c.flag}</div>
+              <div>
+                <div class="cc-name">${c.name}</div>
+                <div class="cc-country">${c.country}</div>
+              </div>
+              ${c.friends.length > 0 ? `
+                <div class="cc-friends">
+                  ${c.friends.map(f => `<div class="cc-av">${f.i}</div>`).join('')}
+                  <span class="cc-friends-label">${c.friends.length} friend${c.friends.length > 1 ? 's' : ''} here</span>
+                </div>
+              ` : ''}
+              ${c.upcoming > 0 && c.friends.length === 0 ? `<div class="cc-upcoming">${c.upcoming} going soon</div>` : ''}
+              ${c.visited ? `<div style="font-size:9px;letter-spacing:0.1em;color:var(--dim)">✓ You've been here</div>` : ''}
+              ${c.bucket ? `<div class="cc-visiting">★ Bucket list</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Open city ─────────────────────────────────────────────
+  function openCity(id) {
+    currentCity = CITIES.find(c => c.id === id);
+    if (!currentCity) return;
+
+    const c = currentCity;
+
+    document.getElementById('cvBreadcrumb').textContent = c.name;
+    document.getElementById('cvFlag').textContent       = c.flag;
+    document.getElementById('cvName').textContent       = c.name;
+    document.getElementById('cvCountry').textContent    = `${c.country} · ${c.region}`;
+    document.getElementById('cvFriendCount').textContent = c.friends.filter(f => f.online).length || c.friends.length;
+    document.getElementById('cvUpcoming').textContent   = c.upcoming;
+    document.getElementById('cvVisited').textContent    = c.visited ? 1 : 0;
+    document.getElementById('cvTips').textContent       = c.tips.length;
+
+    const liveFriends = c.friends.filter(f => f.online);
+    if (liveFriends.length > 0) {
+      document.getElementById('cvLiveBadge').style.display = 'inline-flex';
+      document.getElementById('cvLiveText').textContent = `${liveFriends.length} friend${liveFriends.length > 1 ? 's' : ''} here now`;
+    } else {
+      document.getElementById('cvLiveBadge').style.display = 'none';
+    }
+
+    // Who's there
+    const wt = document.getElementById('cvWhosThere');
+    if (c.friends.length === 0) {
+      wt.innerHTML = `<div style="font-size:11px;color:var(--dim);letter-spacing:0.06em;padding:8px 0">No friends here yet — be the first to plan a trip!</div>`;
+    } else {
+      wt.innerHTML = c.friends.map(f => `
+        <div class="wt-card">
+          <div class="wt-av">${f.i}${f.online ? '<div class="wt-online"></div>' : ''}</div>
+          <div class="wt-info">
+            <div class="wt-name">${f.n}</div>
+            <div class="wt-dates">📅 ${f.dates}</div>
+          </div>
+          <div class="wt-overlap">Overlaps yours</div>
+          <button class="wt-msg-btn" onclick="toast('Messaging coming in next release — stay tuned! For ${f.n}!')">Message</button>
+        </div>
+      `).join('');
+    }
+
+    // Tips
+    const tg = document.getElementById('cvTipsGrid');
+    if (c.tips.length === 0) {
+      tg.innerHTML = `
+        <div class="tip-add" onclick="toast('Add tip coming soon!')" style="grid-column:1/-1;padding:32px">
+          <div style="font-size:24px;opacity:0.3">+</div>
+          <div class="tip-add-label">Be the first to add a tip for ${c.name}</div>
+        </div>`;
+    } else {
+      tg.innerHTML = c.tips.map(t => `
+        <div class="tip-card">
+          <div class="tip-tag">${t.tag}</div>
+          <div class="tip-place">${t.place}</div>
+          <div class="tip-desc">${t.desc}</div>
+          <div class="tip-author">— ${t.author}</div>
+        </div>
+      `).join('') + `
+        <div class="tip-add" onclick="toast('Add tip coming soon!')">
+          <div style="font-size:20px;opacity:0.3">+</div>
+          <div class="tip-add-label">Add a tip</div>
+        </div>`;
+    }
+
+    // Feed
+    document.getElementById('cvFeed').innerHTML = c.feed.length > 0
+      ? c.feed.map(f => `
+          <div class="af-item">
+            <div class="af-av">${f.av}</div>
+            <div><div class="af-text">${f.text}</div><div class="af-time">${f.time}</div></div>
+          </div>
+        `).join('')
+      : `<div style="font-size:11px;color:var(--dim);padding:8px 0">No activity yet.</div>`;
+
+    // Weather
+    document.getElementById('cvWeatherIcon').textContent = c.weather.icon;
+    document.getElementById('cvWeatherTemp').textContent = c.weather.temp;
+    document.getElementById('cvWeatherDesc').textContent = `${c.weather.desc} · ${c.name}`;
+    document.getElementById('cvHumidity').textContent    = c.weather.humidity;
+    document.getElementById('cvWind').textContent        = c.weather.wind;
+    document.getElementById('cvFeels').textContent       = c.weather.feels;
+
+    // Best time bars
+    const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+    const peak   = Math.max(...c.bestTime);
+    document.getElementById('cvBestTime').innerHTML = months.map((m, i) => `
+      <div class="bt-row">
+        <div class="bt-month">${m}</div>
+        <div class="bt-bar-wrap"><div class="bt-bar ${c.bestTime[i] === peak ? 'peak' : ''}" style="width:${c.bestTime[i]*100}%"></div></div>
+      </div>
+    `).join('');
+
+    // Quick facts
+    document.getElementById('cvFacts').innerHTML = c.facts.map(([l,v]) => `
+      <div class="qf-row"><div class="qf-label">${l}</div><div class="qf-val">${v}</div></div>
+    `).join('');
+
+    // Switch views
+    document.getElementById('hubView').style.display  = 'none';
+    document.getElementById('cityView').style.display = 'flex';
+  }
+
+  function showHub() {
+    document.getElementById('cityView').style.display = 'none';
+    document.getElementById('hubView').style.display  = 'flex';
+  }
+
+  // ── Filter / search ───────────────────────────────────────
+  function setFilter(btn, filter) {
+    activeFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilters();
+  }
+
+  function applyFilters(q = document.getElementById('citySearchInput').value) {
+    let list = CITIES;
+    if (activeFilter === 'friends') list = list.filter(c => c.friends.length > 0);
+    if (activeFilter === 'visited') list = list.filter(c => c.visited);
+    if (activeFilter === 'bucket')  list = list.filter(c => c.bucket);
+    if (q) list = list.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.country.toLowerCase().includes(q.toLowerCase()));
+    renderHub(list);
+  }
+
+  // ── Global city search (any city in the world) ────────────
+  let searchTimer = null;
+  let searchCache = {};
+
+  function handleCitySearch(q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    q = q.trim();
+
+    if (!q) {
+      resultsEl.style.display = 'none';
+      applyFilters('');
+      return;
+    }
+
+    // Filter featured cities locally first
+    applyFilters(q);
+
+    // Show dropdown
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div class="search-result-loading">Searching cities worldwide...</div>';
+
+    // Debounce API call
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchGlobalCities(q), 350);
+  }
+
+  async function fetchGlobalCities(q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    const cacheKey = q.toLowerCase();
+
+    // Use cache if available
+    if (searchCache[cacheKey]) {
+      renderSearchResults(searchCache[cacheKey], q);
+      return;
+    }
+
+    try {
+      // Try CountriesNow API first
+      const res = await fetch('https://countriesnow.space/api/v0.1/countries/cities/q?city=' + encodeURIComponent(q), {
+        method: 'GET', headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+
+      if (data && data.data && data.data.length > 0) {
+        // Format results — API returns {city, country}
+        const results = data.data.slice(0, 12).map(item => ({
+          city: item.city || item,
+          country: item.country || '',
+          flag: getCountryFlag(item.country || '')
+        }));
+        searchCache[cacheKey] = results;
+        renderSearchResults(results, q);
+        return;
+      }
+    } catch {}
+
+    // Fallback: search our expanded SEED_CITIES from dashboard
+    try {
+      const fallbackResults = SEED_CITIES
+        .filter(c => c.n.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 12)
+        .map(c => ({ city: c.n, country: c.c, flag: c.f }));
+
+      if (fallbackResults.length > 0) {
+        searchCache[cacheKey] = fallbackResults;
+        renderSearchResults(fallbackResults, q);
+        return;
+      }
+    } catch {}
+
+    // No results
+    resultsEl.innerHTML = '<div class="search-result-empty">No cities found for "' + q + '"</div>';
+  }
+
+  function renderSearchResults(results, q) {
+    const resultsEl = document.getElementById('globalSearchResults');
+    if (!results || results.length === 0) {
+      resultsEl.innerHTML = '<div class="search-result-empty">No cities found</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = '';
+    results.forEach(r => {
+      const city     = r.city    || '';
+      const country  = r.country || '';
+      const flag     = r.flag    || '🌍';
+      const featured = CITIES.find(fc => fc.name.toLowerCase() === city.toLowerCase());
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML =
+        '<span class="sr-flag">' + flag + '</span>' +
+        '<div class="sr-info">' +
+          '<div class="sr-city">' + city + '</div>' +
+          '<div class="sr-country">' + country + '</div>' +
+        '</div>' +
+        '<span class="sr-explore">' + (featured ? 'Featured' : 'Explore') + ' →</span>';
+      item.addEventListener('click', function() {
+        selectCity(city, country, flag, !!featured);
+      });
+      resultsEl.appendChild(item);
+    });
+  }
+
+  function selectCity(city, country, flag, isFeatured) {
+    // Close dropdown
+    document.getElementById('globalSearchResults').style.display = 'none';
+    document.getElementById('citySearchInput').value = city;
+
+    if (isFeatured) {
+      // Open the featured city detail view
+      const featured = CITIES.find(c => c.name.toLowerCase() === city.toLowerCase());
+      if (featured) { openCity(featured); return; }
+    }
+
+    // Open generic city view for non-featured cities
+    openGenericCity(city, country, flag);
+  }
+
+  function openGenericCity(city, country, flag) {
+    document.getElementById('hubView').style.display  = 'none';
+    document.getElementById('cityView').style.display = 'flex';
+
+    const safeCity    = city    || 'Unknown';
+    const safeCountry = country || '';
+    const safeFlag    = flag    || '🌍';
+
+    document.getElementById('cityBackBtn').onclick = function() {
+      document.getElementById('cityView').style.display = 'none';
+      document.getElementById('hubView').style.display  = 'flex';
+      document.getElementById('citySearchInput').value  = '';
+    };
+
+    const heroName = document.getElementById('cityHeroName');
+    if (heroName) heroName.textContent = safeCity;
+    const heroFlagEl = document.getElementById('cityHeroFlag');
+    if (heroFlagEl) heroFlagEl.textContent = safeFlag;
+    const heroCountryEl = document.getElementById('cityHeroCountry');
+    if (heroCountryEl) heroCountryEl.textContent = safeCountry;
+
+    const mainEl = document.getElementById('cityMainContent');
+    if (!mainEl) return;
+
+    mainEl.innerHTML = '';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'padding:28px 24px';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:32px;font-weight:300;margin-bottom:8px;font-family:Cormorant Garamond,serif';
+    titleEl.textContent = safeFlag + ' ' + safeCity;
+
+    const countryEl = document.createElement('div');
+    countryEl.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:24px;letter-spacing:0.05em';
+    countryEl.textContent = safeCountry;
+
+    const addCard = document.createElement('div');
+    addCard.style.cssText = 'background:var(--card);border:1px solid var(--border);padding:20px;margin-bottom:16px';
+    addCard.innerHTML = '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Add a Trip Here</div>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px">Be the first of your friends to explore ' + safeCity + '. Add a trip to share tips and see overlaps.</div>';
+
+    const addBtn = document.createElement('button');
+    addBtn.style.cssText = 'background:var(--gold);border:none;padding:11px 24px;font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--night);cursor:pointer';
+    addBtn.textContent = '+ Add Trip to ' + safeCity;
+    addBtn.addEventListener('click', function() { window.location.href = 'layover-dashboard.html'; });
+    addCard.appendChild(addBtn);
+
+    const tipsCard = document.createElement('div');
+    tipsCard.style.cssText = 'background:var(--card);border:1px solid var(--border);padding:20px';
+    tipsCard.innerHTML = '<div style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Friend Tips</div>' +
+      '<div style="font-size:12px;color:var(--dim);letter-spacing:0.06em">No tips yet for ' + safeCity + '. Add a trip and be the first to leave a recommendation.</div>';
+
+    wrapper.appendChild(titleEl);
+    wrapper.appendChild(countryEl);
+    wrapper.appendChild(addCard);
+    wrapper.appendChild(tipsCard);
+    mainEl.appendChild(wrapper);
+  }
+
+  // Get flag emoji from country name
+  function getCountryFlag(country) {
+    const flags = {
+      'United States':'🇺🇸','Japan':'🇯🇵','United Kingdom':'🇬🇧','France':'🇫🇷',
+      'Germany':'🇩🇪','Italy':'🇮🇹','Spain':'🇪🇸','Portugal':'🇵🇹','Netherlands':'🇳🇱',
+      'Australia':'🇦🇺','Canada':'🇨🇦','Brazil':'🇧🇷','Mexico':'🇲🇽','Argentina':'🇦🇷',
+      'South Africa':'🇿🇦','Nigeria':'🇳🇬','Kenya':'🇰🇪','Ghana':'🇬🇭','Ethiopia':'🇪🇹',
+      'Egypt':'🇪🇬','Morocco':'🇲🇦','China':'🇨🇳','India':'🇮🇳','South Korea':'🇰🇷',
+      'Thailand':'🇹🇭','Vietnam':'🇻🇳','Indonesia':'🇮🇩','Philippines':'🇵🇭','Singapore':'🇸🇬',
+      'Malaysia':'🇲🇾','UAE':'🇦🇪','Saudi Arabia':'🇸🇦','Turkey':'🇹🇷','Greece':'🇬🇷',
+      'Sweden':'🇸🇪','Norway':'🇳🇴','Denmark':'🇩🇰','Finland':'🇫🇮','Switzerland':'🇨🇭',
+      'Austria':'🇦🇹','Belgium':'🇧🇪','Poland':'🇵🇱','Czech Republic':'🇨🇿','Hungary':'🇭🇺',
+      'Colombia':'🇨🇴','Peru':'🇵🇪','Chile':'🇨🇱','New Zealand':'🇳🇿','Ireland':'🇮🇪',
+      'Russia':'🇷🇺','Ukraine':'🇺🇦','Israel':'🇮🇱','Pakistan':'🇵🇰','Bangladesh':'🇧🇩',
+      'Sri Lanka':'🇱🇰','Nepal':'🇳🇵','Jamaica':'🇯🇲','Cuba':'🇨🇺','Dominican Republic':'🇩🇴',
+      'Puerto Rico':'🇵🇷','Haiti':'🇭🇹','Trinidad and Tobago':'🇹🇹','Barbados':'🇧🇧',
+      'Iceland':'🇮🇸','Croatia':'🇭🇷','Romania':'🇷🇴','Bulgaria':'🇧🇬','Serbia':'🇷🇸',
+      'Tanzania':'🇹🇿','Uganda':'🇺🇬','Rwanda':'🇷🇼','Senegal':'🇸🇳','Ivory Coast':'🇨🇮',
+      'Cameroon':'🇨🇲','Zimbabwe':'🇿🇼','Zambia':'🇿🇲','Mozambique':'🇲🇿','Angola':'🇦🇴',
+      'Kazakhstan':'🇰🇿','Uzbekistan':'🇺🇿','Georgia':'🇬🇪','Armenia':'🇦🇲','Azerbaijan':'🇦🇿',
+      'Jordan':'🇯🇴','Lebanon':'🇱🇧','Qatar':'🇶🇦','Kuwait':'🇰🇼','Bahrain':'🇧🇭',
+      'Oman':'🇴🇲','Myanmar':'🇲🇲','Cambodia':'🇰🇭','Laos':'🇱🇦','Taiwan':'🇹🇼',
+      'Hong Kong':'🇭🇰','Macau':'🇲🇴','Mongolia':'🇲🇳','Afghanistan':'🇦🇫','Iraq':'🇮🇶',
+      'Panama':'🇵🇦','Costa Rica':'🇨🇷','Guatemala':'🇬🇹','Honduras':'🇭🇳','Nicaragua':'🇳🇮',
+      'El Salvador':'🇸🇻','Bolivia':'🇧🇴','Ecuador':'🇪🇨','Paraguay':'🇵🇾','Uruguay':'🇺🇾',
+      'Venezuela':'🇻🇪','Guyana':'🇬🇾','Suriname':'🇸🇷','Belize':'🇧🇿','Bahamas':'🇧🇸',
+      'Fiji':'🇫🇯','Papua New Guinea':'🇵🇬','Maldives':'🇲🇻','Mauritius':'🇲🇺',
+      'Madagascar':'🇲🇬','Reunion':'🇷🇪','Seychelles':'🇸🇨'
+    };
+    return flags[country] || '🌍';
+  }
+
+  // Close search results when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) {
+      document.getElementById('globalSearchResults').style.display = 'none';
+    }
+  });
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ── Cursor ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+  document.addEventListener('mouseover', e => {
+    if (e.target.closest('a,button,.city-card,.wt-card,.tip-card,.af-item')) {
+      ring.style.width='40px'; ring.style.height='40px'; ring.style.borderColor='rgba(201,168,76,0.5)';
+    } else {
+      ring.style.width='28px'; ring.style.height='28px'; ring.style.borderColor='rgba(201,168,76,0.3)';
+    }
+  });
+
+  init();
+
+  // Page load transition
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('done');
+        setTimeout(() => loader.remove(), 400);
+      }
+    }, 400);
+  });
+
+  // Fix mobile viewport height (iOS Safari address bar bug)
+  function setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+</script>
+</body>
+</html>
