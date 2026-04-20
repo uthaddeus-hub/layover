@@ -165,6 +165,149 @@
     .invite-cta { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--black); background: var(--gold); border: none; padding: 9px 18px; cursor: pointer; font-family: 'DM Mono', monospace; transition: background 0.2s; white-space: nowrap; }
     .invite-cta:hover { background: var(--gold-light); }
 
+
+    /* ══════════════════════════════════════════════════════
+       MOBILE UX POLISH
+    ══════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      /* Touch targets — minimum 44px for all interactive elements */
+      button, a, input, select, .nav-item, .trip-card,
+      .city-card, .friend-item, .tl-item, .panel-item,
+      .mob-tab, .rsvp-btn, .pa-btn, .sec-action {
+        min-height: 44px;
+      }
+
+      /* Bigger tap targets on bottom nav */
+      .mob-tab {
+        padding: 8px 10px 6px !important;
+        min-width: 52px;
+        font-size: 9px !important;
+      }
+      .mob-tab .mt-icon { font-size: 22px !important; }
+
+      /* Smooth scrolling everywhere */
+      * { -webkit-overflow-scrolling: touch; }
+
+      /* Better typography on mobile */
+      body { font-size: 14px; -webkit-text-size-adjust: 100%; }
+
+      /* Cards feel more native */
+      .card, .trip-card, .friend-item,
+      .rec-card, .ov-card, .section {
+        border-radius: 0 !important;
+      }
+
+      /* Trip momentum scroll — bigger cards on mobile */
+      .trip-momentum-card {
+        width: 140px !important;
+        padding: 14px !important;
+      }
+      .tmc-city { font-size: 16px !important; }
+      .tmc-countdown { font-size: 24px !important; }
+
+      /* Overlap banner — stack on mobile */
+      .overlap-alert {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        padding: 14px 16px !important;
+      }
+      .oa-cta { width: 100% !important; text-align: center !important; }
+
+      /* Stats row — 2x2 grid on mobile */
+      .stats-row {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1px !important;
+      }
+      .stat-box { padding: 16px 12px !important; }
+      .stat-val { font-size: 28px !important; }
+
+      /* Topbar — compact on mobile */
+      .topbar h1 { font-size: 20px !important; }
+      .topbar { padding: 12px 16px !important; gap: 10px !important; }
+      .topbar-right { gap: 8px !important; }
+      .add-trip-btn { padding: 10px 14px !important; font-size: 10px !important; }
+
+      /* Cover hero — better mobile height */
+      .cover-hero { height: 220px !important; }
+      .trip-title-big { font-size: 26px !important; line-height: 1.1 !important; }
+
+      /* RSVP buttons — full width stacked */
+      .rsvp-btns { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .rsvp-btn { padding: 14px !important; font-size: 11px !important; }
+
+      /* Countdown boxes — more breathing room */
+      .cd-num { font-size: 28px !important; }
+      .cd-box { padding: 12px 4px !important; }
+
+      /* Profile stats — wrap nicely */
+      .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat-val { font-size: 22px !important; }
+
+      /* Friends search bar */
+      .user-search-input { font-size: 16px !important; padding: 14px 16px 14px 42px !important; }
+
+      /* Invite card */
+      .ic-link-row { flex-direction: column !important; gap: 8px !important; }
+      .ic-link-input { width: 100% !important; font-size: 11px !important; }
+      .ic-copy-btn { width: 100% !important; padding: 12px !important; }
+
+      /* Trip detail sidebar stacks below */
+      .trip-body { grid-template-columns: 1fr !important; }
+      .trip-sidebar { border-left: none !important; border-top: 1px solid var(--border) !important; }
+
+      /* Section padding */
+      .section { padding: 18px 16px !important; }
+
+      /* Map stats bar */
+      .map-stats { flex-wrap: wrap !important; }
+      .ms-item { min-width: 50% !important; }
+
+      /* Landing page */
+      .hero-ctas { flex-direction: column !important; align-items: stretch !important; }
+      .btn-primary, .btn-ghost { text-align: center !important; }
+
+      /* Explore city grid */
+      .city-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 1px !important; }
+
+      /* Activity feed items */
+      .feed-item-real { padding: 12px 0 !important; }
+
+      /* Modals — full screen on mobile */
+      .modal { 
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+        max-height: 90vh !important;
+        animation: slideUp 0.28s ease !important;
+      }
+      @keyframes slideUp { from{transform:translateY(100%)} to{transform:none} }
+      .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+
+      /* Input fields — prevent iOS zoom */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+
+      /* Smooth active states for touch */
+      a:active, button:active {
+        opacity: 0.7;
+        transition: opacity 0.1s;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .brand-name, .trip-title-big { font-size: 22px !important; }
+      .city-grid { grid-template-columns: 1fr !important; }
+      .tmc-city { font-size: 14px !important; }
+    }
+
   </style>
 </head>
 <body>
