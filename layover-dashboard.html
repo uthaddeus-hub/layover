@@ -371,7 +371,8 @@
       /* Dashboard mobile */
       .topbar { padding: 14px 16px; }
       .main-grid { grid-template-columns: 1fr !important; }
-      .right-col { display: none; }
+      .main-grid > .right-col { order: 2; }
+      .right-col { display: flex !important; flex-direction: column !important; order: 2; width: 100%; padding-top: 0; }
       .trip-grid { grid-template-columns: 1fr !important; }
       .stats-row { gap: 8px; }
       .stat-card { padding: 14px 12px; }
@@ -410,7 +411,7 @@
       .stats-strip { grid-template-columns: repeat(3, 1fr) !important; }
       .stat-box { padding: 12px 0; }
       .profile-name { font-size: 28px; }
-      .content { grid-template-columns: 1fr !important; }
+      .content { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; }
       .right-col { order: -1; }
 
       /* Explore mobile */
@@ -604,7 +605,7 @@
 
       /* Trip detail sidebar stacks below */
       .trip-body { grid-template-columns: 1fr !important; }
-      .trip-sidebar { border-left: none !important; border-top: 1px solid var(--border) !important; }
+      .trip-sidebar { border-left: none !important; border-top: 1px solid var(--border) !important; display: block !important; }
 
       /* Section padding */
       .section { padding: 18px 16px !important; }
