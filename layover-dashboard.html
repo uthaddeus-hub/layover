@@ -1517,29 +1517,11 @@ const DEMO_TRIPS = [
     { id:'demo-berlin', city:'Berlin',  country:'Germany',        flag:'🇩🇪', depart_date:'2026-07-10', return_date:'2026-07-16', notes:'Techno, art, and history',                    vibe:'nightlife', cover_emoji:'🎶', visibility:'public'  },
     { id:'demo-miami',  city:'Miami',   country:'United States',  flag:'🇺🇸', depart_date:'2026-03-28', return_date:'2026-03-31', notes:'Art Basel weekend',                           vibe:'nightlife', cover_emoji:'🌴', visibility:'public'  },
   ];
-    {
       id: 'demo-1',
       city: 'Newark', country: 'United States', flag: '🇺🇸',
       depart_date: '2026-03-14', return_date: '2026-03-22',
       notes: 'Work conference + catch-ups',
       vibe: 'business', cover_emoji: '💼', visibility: 'friends'
-    },
-    {
-      id: 'demo-2',
-      city: 'London', country: 'United Kingdom', flag: '🇬🇧',
-      depart_date: '2026-04-02', return_date: '2026-04-06',
-      notes: 'Long weekend — Borough Market, Tate Modern',
-      vibe: 'culture', cover_emoji: '🏛', visibility: 'friends'
-    },
-    {
-      id: 'demo-3',
-      city: 'Tokyo', country: 'Japan', flag: '🇯🇵',
-      depart_date: '2026-05-10', return_date: '2026-05-18',
-      notes: 'First time — ramen tour, teamLab, Golden Gai',
-      vibe: 'food', cover_emoji: '🍜', visibility: 'public'
-    },
-  ];
-
   async function loadTrips() {
     // Try to load from 'trips' table; gracefully fall back to demo data
     try {
