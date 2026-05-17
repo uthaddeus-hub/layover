@@ -1127,6 +1127,8 @@
               '<div class="usr-name">' + name + '</div>' +
               '<div class="usr-handle">' + handle + (city ? ' · ' + city : '') + '</div>' +
             '</div>' +
+        '</div>' +
+          '<button class="usr-add-btn" onclick="sendFriendRequest(\'' + profile.id + '\',\'' + name + '\',this)">+ Connect</button>';
           resultsEl.appendChild(item);
         });
       }
