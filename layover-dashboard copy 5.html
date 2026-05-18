@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Layover — Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0a0a0f; --deep: #11111a; --card: #16161f; --card2: #1c1c28;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.04);
+      --gold: #c9a84c; --gold-light: #e8c97a; --gold-dim: rgba(201,168,76,0.15);
+      --cream: #f0e8d8; --muted: rgba(240,232,216,0.45); --dim: rgba(240,232,216,0.18);
+      --green: #7ae0a8; --red: #e07a7a; --blue: #7aaee0;
+      --sidebar: 220px; --app-height: 100vh;
+    }
+    @supports (height: 100dvh) { :root { --app-height: 100dvh; } }
+    html, body { height: var(--app-height); }
+    body { background: var(--night); color: var(--cream); font-family: 'DM Mono', monospace; font-weight: 300; cursor: none; }
+    .cursor { position: fixed; width: 7px; height: 7px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+    .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(201,168,76,0.3); border-radius: 50%; pointer-events: none; z-index: 9998; transform: translate(-50%,-50%); transition: all 0.16s ease; }
+    .auth-gate { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; gap: 16px; }
+    .auth-gate.hidden { display: none; }
+    .auth-gate p { font-size: 12px; color: var(--muted); letter-spacing: 0.1em; }
+    .gate-logo { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; letter-spacing: 0.25em; margin-bottom: 8px; }
+    .gate-logo span { color: var(--gold); }
+    .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; height: var(--app-height); }
+    aside { background: var(--deep); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid var(--border2); }
+    .sidebar-logo a { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; letter-spacing: 0.22em; color: var(--cream); text-decoration: none; }
+    .sidebar-logo span { color: var(--gold); }
+    .nav-section { padding: 20px 16px 8px; }
+    .nav-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; cursor: none; transition: all 0.2s; margin-bottom: 2px; position: relative; }
+    .nav-item:hover { color: var(--cream); background: rgba(255,255,255,0.04); }
+    .nav-item.active { color: var(--cream); background: rgba(201,168,76,0.08); }
+    .nav-item.active::before { content:''; position:absolute; left:0; top:20%; height:60%; width:2px; background:var(--gold); }
+    .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border2); }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); cursor: none; }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 11px; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-status { font-size: 9px; color: var(--dim); margin-top: 1px; }
+    .signout-btn { background: none; border: none; font-size: 11px; color: var(--dim); cursor: none; transition: color 0.2s; }
+    .signout-btn:hover { color: var(--red); }
+    main { overflow-y: auto; display: flex; flex-direction: column; background: var(--night); }
+    .topbar { padding: 20px 36px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(10,10,15,0.9); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
+    .topbar-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; }
+    .topbar-left h1 em { font-style: italic; color: var(--gold); }
+    .topbar-left .date { font-size: 10px; color: var(--dim); letter-spacing: 0.15em; margin-top: 2px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .icon-btn { width: 36px; height: 36px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: none; transition: all 0.2s; position: relative; }
+    .notif-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; }
+    .add-trip-btn { display: flex; align-items: center; gap: 8px; background: var(--gold); color: var(--night); border: none; padding: 10px 20px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; cursor: none; transition: all 0.2s; }
+    .add-trip-btn:hover { background: var(--gold-light); }
+    .content { padding: 28px 36px; display: grid; grid-template-columns: 1fr 320px; gap: 24px; flex: 1; }
+    .card { background: var(--card); border: 1px solid var(--border); }
+    .card-header { padding: 18px 22px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .card-title::before { content:''; width:20px; height:1px; background:var(--gold); display:block; }
+    .card-action { font-size: 10px; letter-spacing: 0.12em; color: var(--gold); text-decoration: none; cursor: none; background: none; border: none; font-family: 'DM Mono', monospace; }
+    .card-body { padding: 20px 22px; }
+    .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 24px; }
+    .stat-box { background: var(--card); padding: 20px 22px; transition: background 0.2s; }
+    .stat-box:hover { background: var(--card2); }
+    .stat-val { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: var(--cream); line-height: 1; }
+    .stat-lbl { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+    .stat-delta { font-size: 9px; margin-top: 4px; }
+    .stat-delta.up { color: var(--green); }
+    .stat-delta.neutral { color: var(--dim); }
+    .trip-list { display: flex; flex-direction: column; gap: 12px; }
+    .trip-card { background: var(--deep); border: 1px solid var(--border); padding: 18px 20px; cursor: none; transition: all 0.22s; position: relative; overflow: hidden; text-decoration: none; display: block; }
+    .trip-card::after { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--gold); transform:scaleY(0); transition:transform 0.2s; }
+    .trip-card:hover { background: var(--card); border-color: rgba(201,168,76,0.2); }
+    .trip-card:hover::after { transform:scaleY(1); }
+    .trip-route { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; margin-bottom: 4px; }
+    .trip-dates { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 10px; }
+    .trip-status { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; }
+    .trip-status.upcoming { color: var(--blue); }
+    .trip-status.active { color: var(--green); }
+    .trip-status.past { color: var(--dim); }
+    .empty-state { text-align: center; padding: 48px 20px; }
+    .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.4; }
+    .empty-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; margin-bottom: 8px; color: var(--muted); }
+    .empty-sub { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; line-height: 1.7; }
+    .right-col { display: flex; flex-direction: column; gap: 20px; }
+    .feed-list { display: flex; flex-direction: column; }
+    .friend-list { display: flex; flex-direction: column; }
+    .friend-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border2); cursor: none; }
+    .friend-item:last-child { border-bottom: none; }
+    .friend-av { width: 32px; height: 32px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--gold); flex-shrink: 0; position: relative; }
+    .friend-online { position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; background: var(--green); border-radius: 50%; border: 1.5px solid var(--card); }
+    .friend-info { flex: 1; }
+    .friend-name { font-size: 12px; color: var(--cream); }
+    .friend-loc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .friend-overlap { font-size: 9px; color: var(--gold); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,15,0.88); backdrop-filter: blur(6px); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--deep); border: 1px solid var(--border); width: 560px; max-width: 96vw; max-height: 94vh; overflow-y: auto; animation: modalIn 0.25s ease; }
+    @keyframes modalIn { from{opacity:0;transform:translateY(16px) scale(0.98)} to{opacity:1;transform:none} }
+    .modal-header { padding: 22px 26px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+    .modal-title em { font-style: italic; color: var(--gold); }
+    .modal-close { background: none; border: none; font-size: 18px; color: var(--dim); cursor: none; }
+    .modal-body { padding: 26px; display: flex; flex-direction: column; gap: 16px; }
+    .m-field label { display: block; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .m-field input, .m-field textarea { width: 100%; background: var(--card); border: 1px solid var(--border); outline: none; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cream); transition: border-color 0.2s; }
+    .m-field input:focus, .m-field textarea:focus { border-color: rgba(201,168,76,0.4); }
+    .m-field input::placeholder, .m-field textarea::placeholder { color: var(--dim); }
+    .m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-footer { padding: 0 26px 26px; display: flex; gap: 12px; }
+    .m-btn-primary { flex: 1; background: var(--gold); border: none; padding: 13px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--night); cursor: none; transition: all 0.2s; }
+    .m-btn-primary:hover { background: var(--gold-light); }
+    .m-btn-ghost { background: transparent; border: 1px solid var(--border); padding: 13px 20px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: none; transition: all 0.2s; }
+    .overlap-alert { margin: 0 0 20px; background: linear-gradient(135deg,rgba(201,168,76,0.12),rgba(201,168,76,0.06)); border: 1px solid rgba(201,168,76,0.3); padding: 16px 20px; display: none; align-items: center; gap: 14px; cursor: none; transition: all 0.2s; animation: fadeUp 0.4s ease; }
+    .overlap-alert.show { display: flex; }
+    .oa-pulse { width: 10px; height: 10px; background: var(--gold); border-radius: 50%; flex-shrink: 0; position: relative; }
+    .oa-pulse::before { content:''; position:absolute; inset:-5px; border-radius:50%; border:1px solid rgba(201,168,76,0.4); animation:oaPulse 1.8s ease-out infinite; }
+    @keyframes oaPulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2.4)} }
+    .oa-text { flex: 1; font-size: 12px; color: var(--cream); line-height: 1.5; }
+    .oa-text strong { color: var(--gold); }
+    .oa-text span { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; }
+    .oa-cta { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); background: none; border: 1px solid rgba(201,168,76,0.35); padding: 7px 14px; cursor: none; font-family: 'DM Mono', monospace; white-space: nowrap; flex-shrink: 0; }
+    .trip-scroll-section { margin: 0 0 20px; }
+    .trip-scroll-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .trip-scroll-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .trip-scroll-label::before { content:''; width:16px; height:1px; background:var(--gold); display:block; }
+    .trip-scroll-track { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .trip-scroll-track::-webkit-scrollbar { display: none; }
+    .trip-momentum-card { flex-shrink: 0; width: 160px; background: var(--card); border: 1px solid var(--border); padding: 16px; cursor: none; transition: all 0.2s; text-decoration: none; display: block; position: relative; overflow: hidden; }
+    .trip-momentum-card:hover { border-color: rgba(201,168,76,0.25); background: var(--card2); transform: translateY(-2px); }
+    .trip-momentum-card.active-trip { border-color: rgba(122,224,168,0.3); background: rgba(122,224,168,0.04); }
+    .tmc-emoji { font-size: 24px; margin-bottom: 8px; }
+    .tmc-city { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 300; color: var(--cream); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tmc-dates { font-size: 9px; color: var(--muted); letter-spacing: 0.07em; margin-bottom: 10px; }
+    .tmc-countdown { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--gold); line-height: 1; }
+    .tmc-countdown-lbl { font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+    .tmc-live-dot { position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; background: var(--green); border-radius: 50%; }
+    .tmc-add { border: 1px dashed rgba(201,168,76,0.2); background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 130px; }
+    .feed-item-real { padding: 12px 0; border-bottom: 1px solid var(--border2); display: flex; gap: 12px; align-items: flex-start; }
+    .feed-item-real:last-child { border-bottom: none; }
+    .feed-av { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-dim); border: 1.5px solid rgba(201,168,76,0.15); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--gold); flex-shrink: 0; }
+    .feed-body-real { flex: 1; }
+    .feed-text-real { font-size: 11px; color: var(--muted); line-height: 1.6; }
+    .feed-text-real strong { color: var(--cream); }
+    .feed-text-real em { font-style: normal; color: var(--gold); }
+    .feed-time-real { font-size: 9px; color: var(--dim); margin-top: 3px; letter-spacing: 0.06em; }
+    .feed-tag { display: inline-block; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 8px; margin-top: 5px; }
+    .feed-tag.overlap { background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2); color: var(--gold); }
+    .feed-tag.trip { background: rgba(122,174,224,0.08); border: 1px solid rgba(122,174,224,0.18); color: var(--blue); }
+    .feed-tag.live { background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.18); color: var(--green); }
+    .presence-banner { margin: 0 0 16px; background: rgba(122,224,168,0.06); border: 1px solid rgba(122,224,168,0.18); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+    .presence-dot-live { width: 8px; height: 8px; background: var(--green); border-radius: 50%; flex-shrink: 0; position: relative; }
+    .presence-dot-live::before { content:''; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(122,224,168,0.35); animation:presencePulse 2s ease-out infinite; }
+    @keyframes presencePulse { 0%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(2.2)} }
+    .presence-text { font-size: 11px; color: var(--green); letter-spacing: 0.05em; flex: 1; line-height: 1.5; }
+    .presence-text span { color: rgba(122,224,168,0.6); }
+    .presence-toggle-btn { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--green); background: none; border: 1px solid rgba(122,224,168,0.3); padding: 5px 12px; cursor: none; font-family: 'DM Mono', monospace; flex-shrink: 0; }
+    .presence-toggle-btn.off { color: var(--dim); border-color: var(--border); }
+    .friend-live-badge { font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); background: rgba(122,224,168,0.08); border: 1px solid rgba(122,224,168,0.2); padding: 2px 7px; }
+    .city-wrap { position: relative; }
+    .city-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid rgba(201,168,76,0.3); border-top: none; z-index: 50; max-height: 220px; overflow-y: auto; display: none; }
+    .city-dropdown.open { display: block; }
+    .city-opt { display: flex; align-items: center; gap: 12px; padding: 11px 14px; font-size: 12px; color: var(--muted); cursor: none; transition: all 0.15s; border-bottom: 1px solid var(--border2); }
+    .city-opt:hover, .city-opt.focused { background: var(--gold-dim); color: var(--cream); }
+    .city-opt-flag { font-size: 16px; flex-shrink: 0; }
+    .city-opt-name { flex: 1; }
+    .city-opt-country { font-size: 10px; color: var(--dim); }
+    .vibe-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+    .vibe-btn { padding: 9px 4px; border: 1px solid var(--border); background: none; cursor: none; font-size: 18px; text-align: center; transition: all 0.18s; font-family: 'DM Mono', monospace; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .vibe-btn span { font-size: 8px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+    .vibe-btn.sel { border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+    .vibe-btn.sel span { color: var(--gold); }
+    .emoji-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .emoji-opt { width: 36px; height: 36px; border: 1px solid var(--border); background: none; cursor: none; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .emoji-opt.sel { border-color: rgba(201,168,76,0.4); background: var(--gold-dim); }
+    .privacy-row { display: flex; }
+    .privacy-opt { flex: 1; padding: 10px 0; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; border: 1px solid var(--border); color: var(--muted); cursor: none; background: none; font-family: 'DM Mono', monospace; transition: all 0.2s; margin-right: -1px; }
+    .privacy-opt.sel { background: var(--gold-dim); border-color: rgba(201,168,76,0.35); color: var(--gold); }
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--card); border: 1px solid var(--border); padding: 14px 20px; font-size: 11px; letter-spacing: 0.06em; color: var(--cream); z-index: 1000; transform: translateY(20px); opacity: 0; transition: all 0.3s; max-width: 300px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.gold { border-color: rgba(201,168,76,0.4); }
+    .fade-in { opacity: 0; transform: translateY(14px); animation: fadeUp 0.5s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+    main::-webkit-scrollbar { width: 4px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); }
+    .skeleton { background: linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .page-loading { position: fixed; inset: 0; background: var(--night); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9000; gap: 16px; opacity: 1; transition: opacity 0.4s; pointer-events: none; }
+    .page-loading.done { opacity: 0; }
+    .pl-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; letter-spacing: 0.24em; color: var(--cream); }
+    .pl-logo span { color: var(--gold); }
+    .pl-bar { width: 120px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+    .pl-bar::after { content:''; position:absolute; left:-40%; width:40%; height:100%; background:var(--gold); animation:plBar 1s ease-in-out infinite; }
+    @keyframes plBar { 0%{left:-40%} 100%{left:140%} }
+    @media (max-width: 768px) {
+      aside { display: none !important; }
+      .shell { grid-template-columns: 1fr !important; }
+      main { padding-bottom: calc(70px + env(safe-area-inset-bottom)); overflow-y: auto; }
+      body { overflow-x: hidden; overflow-y: auto; }
+      .cursor, .cursor-ring { display: none; }
+      .topbar { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+      .topbar-left h1 { font-size: 20px; }
+      .content { padding: 16px; grid-template-columns: 1fr; display: flex; flex-direction: column; }
+      .stats-row { grid-template-columns: 1fr 1fr; gap: 1px; }
+      .stat-box { padding: 16px 12px; }
+      .stat-val { font-size: 28px; }
+      .right-col { order: -1; }
+      .trip-momentum-card { width: 140px; padding: 14px; }
+      input, textarea, select { font-size: 16px !important; }
+      .modal { width: 95vw; max-height: 92vh; }
+      .modal-body { padding: 16px; }
+      .modal-footer { padding: 0 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-loading" id="pageLoader"><div class="pl-logo">LAY<span>◆</span>VER</div><div class="pl-bar"></div></div>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="auth-gate" id="authGate">
+  <div class="gate-logo">LAY<span>◆</span>VER</div>
+  <p>Loading your account…</p>
+  <p style="margin-top:16px;font-size:11px"><a href="layover-login.html" style="color:var(--gold)">← Back to sign in</a></p>
+</div>
+<div class="shell" id="appShell" style="display:none">
+  <aside>
+    <div class="sidebar-logo"><a href="layover-dashboard.html">LAY<span>◆</span>VER</a></div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="layover-dashboard.html" class="nav-item active"><span class="nav-icon">🏠</span> Home</a>
+      <a href="layover-explore.html" class="nav-item"><span class="nav-icon">🌍</span> Explore</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Social</div>
+      <a href="layover-friends.html" class="nav-item"><span class="nav-icon">👥</span> Friends</a>
+      <a href="layover-map.html" class="nav-item"><span class="nav-icon">🗺</span> Map</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <a href="layover-profile.html" class="nav-item"><span class="nav-icon">👤</span> Profile</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebarAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">Loading…</div>
+          <div class="user-status">● Online</div>
+        </div>
+        <button class="signout-btn" onclick="handleSignOut()" title="Sign out">⏏</button>
+      </div>
+    </div>
+  </aside>
+  <main>
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Good <em id="greeting">evening</em>, <span id="topbarName">traveler</span>.</h1>
+        <div class="date" id="topDate"></div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="showToast('No new notifications','')">🔔<span class="notif-dot"></span></button>
+        <button class="add-trip-btn" onclick="openModal()">+ Add Trip</button>
+        <button class="add-trip-btn" style="background:none;border:1px solid rgba(201,168,76,0.3);color:var(--gold)" onclick="showDashInvite()">🔗 Invite</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left-col">
+        <div class="overlap-alert" id="overlapAlert">
+          <div class="oa-pulse"></div>
+          <div class="oa-text">
+            <strong id="oa-text-main">You overlap with a friend!</strong>
+            <span id="oa-text-sub">Loading...</span>
+          </div>
+          <button class="oa-cta" id="oa-cta-btn">View Overlap →</button>
+        </div>
+        <div class="trip-scroll-section fade-in">
+          <div class="trip-scroll-header">
+            <span class="trip-scroll-label">Your Trips</span>
+            <button class="card-action" onclick="openModal()" style="font-size:9px;padding:5px 12px">+ Add</button>
+          </div>
+          <div class="trip-scroll-track" id="tripMomentumTrack"></div>
+        </div>
+        <div class="stats-row fade-in">
+          <div class="stat-box"><div class="stat-val" id="stat-trips">0</div><div class="stat-lbl">My Trips</div><div class="stat-delta neutral">All time</div></div>
+          <div class="stat-box"><div class="stat-val">4</div><div class="stat-lbl">Friends Online</div><div class="stat-delta up">↑ 2 today</div></div>
+          <div class="stat-box"><div class="stat-val" id="stat-overlaps">—</div><div class="stat-lbl">Overlaps Soon</div><div class="stat-delta up">Next 30 days</div></div>
+          <div class="stat-box"><div class="stat-val" id="stat-cities">—</div><div class="stat-lbl">Cities Visited</div><div class="stat-delta neutral">This year</div></div>
+        </div>
+        <div class="card fade-in">
+          <div class="card-header">
+            <span class="card-title">Upcoming Trips</span>
+            <button class="card-action" onclick="openModal()">+ New Trip</button>
+          </div>
+          <div class="card-body">
+            <div id="trip-list-wrap"></div>
+          </div>
+        </div>
+      </div>
+      <div class="right-col">
+        <div class="card fade-in">
+          <div class="card-header">
+            <span class="card-title">Friends Now</span>
+            <a href="layover-friends.html" class="card-action">See All</a>
+          </div>
+          <div class="card-body" style="padding-top:10px;padding-bottom:8px">
+            <div class="presence-banner" id="presenceBanner" style="display:none">
+              <div class="presence-dot-live"></div>
+              <div class="presence-text">Sharing your location as <strong id="presenceCityName">—</strong><br><span>Friends can see you are here right now</span></div>
+              <button class="presence-toggle-btn" onclick="togglePresence()">Turn Off</button>
+            </div>
+            <div class="presence-banner" id="presenceOffBanner" style="display:none;background:rgba(255,255,255,0.02);border-color:var(--border)">
+              <div class="presence-dot-live" style="background:var(--dim);animation:none"></div>
+              <div class="presence-text" style="color:var(--muted)">Location sharing is off<br><span>Turn on to let friends see your city</span></div>
+              <button class="presence-toggle-btn off" onclick="togglePresence()">Turn On</button>
+            </div>
+            <div class="friend-list" id="liveFriendList">
+              <div style="font-size:11px;color:var(--dim);padding:12px 0;text-align:center">Loading…</div>
+            </div>
+          </div>
+        </div>
+        <div class="card fade-in">
+          <div class="card-header">
+            <span class="card-title">Activity</span>
+            <button class="card-action" onclick="showToast('Full feed coming soon!','')">See All</button>
+          </div>
+          <div class="card-body" style="padding-top:6px;padding-bottom:6px">
+            <div class="feed-list" id="feed-list">
+              <div style="font-size:11px;color:var(--dim);padding:10px 0;text-align:center">Loading activity...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD TRIP MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Plan a <em>trip.</em></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field">
+        <label>Where are you going?</label>
+        <div class="city-wrap">
+          <input type="text" id="t-city" placeholder="Search any city…" autocomplete="off" oninput="citySearch(this.value)" onkeydown="cityKey(event)"/>
+          <div class="city-dropdown" id="cityDropdown"></div>
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-field"><label>Depart Date</label><input type="date" id="t-from"/></div>
+        <div class="m-field"><label>Return Date</label><input type="date" id="t-to"/></div>
+      </div>
+      <div class="m-field">
+        <label>Trip Vibe</label>
+        <div class="vibe-grid">
+          <button class="vibe-btn sel" onclick="selVibe(this,'adventure')">🏔<span>Adventure</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'food')">🍜<span>Food Trip</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'culture')">🏛<span>Culture</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'business')">💼<span>Business</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'beach')">🏖<span>Beach</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'nightlife')">🍸<span>Nightlife</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'wellness')">🧘<span>Wellness</span></button>
+          <button class="vibe-btn" onclick="selVibe(this,'family')">👨‍👩‍👧<span>Family</span></button>
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Caption</label>
+        <textarea id="t-notes" placeholder="e.g. First time in Tokyo — ramen tour, Golden Gai…" rows="3" style="width:100%;background:var(--card);border:1px solid var(--border);outline:none;padding:12px 14px;font-family:'DM Mono',monospace;font-size:12px;color:var(--cream);resize:none;transition:border-color 0.2s;line-height:1.6"></textarea>
+      </div>
+      <div class="m-field">
+        <label>Trip Icon</label>
+        <div class="emoji-row">
+          <button class="emoji-opt sel" onclick="selEmoji(this,'✈️')">✈️</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏖')">🏖</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏔')">🏔</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🍜')">🍜</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎌')">🎌</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🏛')">🏛</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎶')">🎶</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'💼')">💼</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🌿')">🌿</button>
+          <button class="emoji-opt" onclick="selEmoji(this,'🎿')">🎿</button>
+        </div>
+      </div>
+      <div class="m-field">
+        <label>Who can see this?</label>
+        <div class="privacy-row">
+          <button class="privacy-opt" onclick="selPrivacy(this,'public')">🌍 Public</button>
+          <button class="privacy-opt sel" onclick="selPrivacy(this,'friends')">👥 Friends</button>
+          <button class="privacy-opt" onclick="selPrivacy(this,'private')">🔒 Private</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="m-btn-primary" id="save-trip-btn" onclick="saveTrip()">Post Trip ✈</button>
+    </div>
+  </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div class="modal-overlay" id="welcomeModal" onclick="if(event.target===this)closeWelcomeModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;text-align:center">
+    <div class="modal-body" style="padding:40px 32px;align-items:center">
+      <div style="font-size:52px;margin-bottom:8px">✈️</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;margin-bottom:8px">Welcome to <em style="font-style:italic;color:var(--gold)">Layover.</em></div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;letter-spacing:0.04em;margin-bottom:28px">Layover shows you when your friends are in the same city as you — so you can actually meet up.<br><br>Start by adding your next trip.</div>
+      <button onclick="closeWelcomeModal();openModal();" style="width:100%;background:var(--gold);border:none;padding:16px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--night);cursor:pointer;transition:background 0.2s;margin-bottom:12px">+ Add Your Next Trip</button>
+      <button onclick="closeWelcomeModal()" style="background:none;border:none;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);cursor:pointer;padding:8px">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVITE MODAL -->
+<div class="modal-overlay" id="inviteModal" onclick="if(event.target===this)document.getElementById('inviteModal').classList.remove('open')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title">Invite <em>friends.</em></div>
+      <button class="modal-close" onclick="document.getElementById('inviteModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" style="gap:14px">
+      <div style="font-size:12px;color:var(--muted);line-height:1.7">Share your link. When friends sign up through it, you'll be connected automatically.</div>
+      <div style="display:flex;gap:0">
+        <input type="text" id="dashInviteLink" readonly style="flex:1;background:var(--card);border:1px solid var(--border);outline:none;padding:12px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--cream)" value="Loading…"/>
+        <button onclick="copyDashInvite()" style="background:var(--gold);border:none;padding:12px 18px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--night);cursor:none">Copy</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="dashShareNative()" style="flex:1;background:none;border:1px solid var(--border);padding:10px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);cursor:none">↑ Share</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:rgba(10,10,15,0.98);border-top:1px solid rgba(255,255,255,0.07);padding:8px 0;padding-bottom:max(8px,env(safe-area-inset-bottom))">
+  <div style="display:flex;justify-content:space-around;align-items:center">
+    <a href="layover-dashboard.html" style="display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;padding:4px 8px;min-width:48px"><span style="font-size:22px">🏠</span><span style="font-size:9px;color:#c9a84c">Home</span></a>
+    <a href="layover-explore.html" style="display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;padding:4px 8px;min-width:48px"><span style="font-size:22px">🌍</span><span style="font-size:9px;color:rgba(240,232,216,0.45)">Explore</span></a>
+    <a href="layover-friends.html" style="display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;padding:4px 8px;min-width:48px"><span style="font-size:22px">👥</span><span style="font-size:9px;color:rgba(240,232,216,0.45)">Friends</span></a>
+    <a href="layover-map.html" style="display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;padding:4px 8px;min-width:48px"><span style="font-size:22px">🗺</span><span style="font-size:9px;color:rgba(240,232,216,0.45)">Map</span></a>
+    <a href="layover-profile.html" style="display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;padding:4px 8px;min-width:48px"><span style="font-size:22px">👤</span><span style="font-size:9px;color:rgba(240,232,216,0.45)">Profile</span></a>
+  </div>
+</nav>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://vlgypptzmxcdsdknlmmg.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZ3lwcHR6bXhjZHNka25sbW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MjQxMTUsImV4cCI6MjA4ODMwMDExNX0._0BQZek5i6NDuQyeADjYIDIcCF8Us1eteJoI6hBZqPA'
+  );
+
+  let currentUser = null;
+  let userTrips = [];
+  let selectedPrivacy = 'friends';
+  let selectedVibe = 'adventure';
+  let selectedEmoji = '✈️';
+  let selectedCityObj = null;
+  let presenceSharing = false;
+  let presenceCity = null;
+
+  // ── DEMO TRIPS ────────────────────────────────────────────
+  const DEMO_TRIPS = [
+    { id:'demo-1',      city:'Newark',  country:'United States',  flag:'🇺🇸', depart_date:'2026-03-14', return_date:'2026-03-22', notes:'Work conference + catch-ups',               vibe:'business',  cover_emoji:'💼', visibility:'friends' },
+    { id:'demo-2',      city:'London',  country:'United Kingdom', flag:'🇬🇧', depart_date:'2026-04-02', return_date:'2026-04-06', notes:'Long weekend — Borough Market, Tate Modern',  vibe:'culture',   cover_emoji:'🏛', visibility:'friends' },
+    { id:'demo-3',      city:'Tokyo',   country:'Japan',          flag:'🇯🇵', depart_date:'2026-05-10', return_date:'2026-05-18', notes:'First time — ramen tour, teamLab, Golden Gai', vibe:'food',      cover_emoji:'🍜', visibility:'public'  },
+    { id:'demo-paris',  city:'Paris',   country:'France',         flag:'🇫🇷', depart_date:'2026-06-01', return_date:'2026-06-07', notes:'Art, food, and the Seine',                    vibe:'culture',   cover_emoji:'🗼', visibility:'friends' },
+    { id:'demo-berlin', city:'Berlin',  country:'Germany',        flag:'🇩🇪', depart_date:'2026-07-10', return_date:'2026-07-16', notes:'Techno, art, and history',                    vibe:'nightlife', cover_emoji:'🎶', visibility:'public'  },
+    { id:'demo-miami',  city:'Miami',   country:'United States',  flag:'🇺🇸', depart_date:'2026-03-28', return_date:'2026-03-31', notes:'Art Basel weekend',                           vibe:'nightlife', cover_emoji:'🌴', visibility:'public'  },
+  ];
+
+  // ── AUTH ──────────────────────────────────────────────────
+  async function init() {
+    try {
+      const sessionPromise = db.auth.getSession();
+      const timeout = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const { data: { session } } = await Promise.race([sessionPromise, timeout]);
+      if (!session) { window.location.href = 'layover-login.html'; return; }
+      currentUser = session.user;
+      showApp();
+    } catch(e) {
+      window.location.href = 'layover-login.html';
+    }
+  }
+
+  function showApp() {
+    document.getElementById('authGate').classList.add('hidden');
+    document.getElementById('appShell').style.display = 'grid';
+    const meta = currentUser.user_metadata || {};
+    const name = meta.first_name || currentUser.email.split('@')[0];
+    const initial = name[0].toUpperCase();
+    window._myName = name;
+    window._myInitial = initial;
+    document.getElementById('sidebarName').textContent = name;
+    document.getElementById('sidebarAvatar').textContent = initial;
+    document.getElementById('topbarName').textContent = name;
+    const h = new Date().getHours();
+    document.getElementById('greeting').textContent = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    document.getElementById('topDate').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    loadTrips();
+    initPresence();
+  }
+
+  async function handleSignOut() {
+    await db.auth.signOut();
+    window.location.href = 'layover-login.html';
+  }
+
+  // ── PRESENCE ──────────────────────────────────────────────
+  const DEMO_PRESENCE = [
+    { name:'Alex Chen',    initial:'A', online:true,  city:'Tokyo',  flag:'🇯🇵', overlap:'Overlaps your Tokyo trip' },
+    { name:'Julia Santos', initial:'J', online:true,  city:'London', flag:'🇬🇧', overlap:'Visiting Apr 2' },
+    { name:'Thad Williams',initial:'T', online:false, city:'Newark', flag:'🇺🇸', overlap:'Same city Mar 16–18' },
+    { name:'Marcus Lee',   initial:'M', online:false, city:null,     flag:null,   overlap:null },
+  ];
+
+  async function initPresence() {
+    try {
+      const { data } = await db.from('presence').select('sharing,city').eq('user_id', currentUser.id).single();
+      if (data) { presenceSharing = data.sharing; presenceCity = data.city; }
+    } catch { presenceSharing = false; }
+    updatePresenceUI();
+    renderLiveFriends();
+  }
+
+  function updatePresenceUI() {
+    const on = document.getElementById('presenceBanner');
+    const off = document.getElementById('presenceOffBanner');
+    if (presenceSharing && presenceCity) {
+      on.style.display = 'flex'; off.style.display = 'none';
+      document.getElementById('presenceCityName').textContent = presenceCity;
+    } else {
+      on.style.display = 'none'; off.style.display = 'flex';
+    }
+  }
+
+  async function togglePresence() {
+    presenceSharing = !presenceSharing;
+    updatePresenceUI();
+    if (presenceSharing) {
+      showToast('Location sharing on — detecting your city…', '');
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async pos => {
+          try {
+            const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+pos.coords.latitude+'&lon='+pos.coords.longitude+'&zoom=10', { headers:{'Accept-Language':'en'} });
+            const data = await res.json();
+            const addr = data.address || {};
+            presenceCity = addr.city || addr.town || addr.village || 'Unknown';
+            await db.from('presence').upsert({ user_id:currentUser.id, sharing:true, city:presenceCity, updated_at:new Date().toISOString() }, { onConflict:'user_id' });
+            updatePresenceUI();
+            showToast('Now sharing: ' + presenceCity, '');
+          } catch {}
+        }, () => { presenceSharing = false; updatePresenceUI(); });
+      }
+    } else {
+      try { await db.from('presence').upsert({ user_id:currentUser.id, sharing:false, updated_at:new Date().toISOString() }, { onConflict:'user_id' }); } catch {}
+      showToast('Location sharing turned off', '');
+    }
+  }
+
+  function renderLiveFriends() {
+    const list = document.getElementById('liveFriendList');
+    if (!list) return;
+    list.innerHTML = DEMO_PRESENCE.map(f => {
+      const dot = f.online ? '<div class="friend-online"></div>' : '';
+      const cityLine = f.city ? '<div class="friend-loc">' + (f.flag||'📍') + ' ' + f.city + (f.online ? ' <span class="friend-live-badge">LIVE</span>' : '') + '</div>' : '<div class="friend-loc" style="color:var(--dim)">Location unknown</div>';
+      const overlapLine = f.overlap ? '<div class="friend-overlap">' + f.overlap + '</div>' : '';
+      return '<div class="friend-item"><div class="friend-av">' + f.initial + dot + '</div><div class="friend-info"><div class="friend-name">' + f.name + '</div>' + cityLine + overlapLine + '</div></div>';
+    }).join('');
+  }
+
+  // ── TRIPS ─────────────────────────────────────────────────
+  async function loadTrips() {
+    try {
+      const { data, error } = await db.from('trips').select('*').eq('user_id', currentUser.id).order('depart_date', { ascending:true });
+      if (error) throw error;
+      userTrips = data || [];
+    } catch { userTrips = []; }
+    renderTrips();
+  }
+
+  function renderTrips() {
+    const wrap = document.getElementById('trip-list-wrap');
+    document.getElementById('stat-trips').textContent = userTrips.length;
+    const trips = userTrips.length ? userTrips : DEMO_TRIPS;
+    renderTripMomentum(trips);
+    showDemoOverlap();
+
+    if (!userTrips.length) {
+      wrap.innerHTML = `
+        <div class="empty-state" style="padding:40px 20px;text-align:center">
+          <div style="font-size:48px;margin-bottom:16px">✈️</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--cream);margin-bottom:8px">Where are you going next?</div>
+          <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;line-height:1.8;margin-bottom:24px">Add your next trip and Layover will show you<br>which friends are going to the same city.</div>
+          <button onclick="openModal()" style="background:var(--gold);border:none;padding:14px 32px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--night);cursor:pointer;transition:all 0.2s">+ Add Your Next Trip</button>
+        </div>`;
+      // Show welcome modal for first-time users
+      const welcomed = localStorage.getItem('layover_welcomed');
+      if (!welcomed) {
+        setTimeout(() => showWelcomeModal(), 600);
+        localStorage.setItem('layover_welcomed', '1');
+      }
+      loadFeed([]);
+      return;
+    }
+
+    const today = new Date();
+    wrap.innerHTML = '<div class="trip-list">' + userTrips.map(t => {
+      const depart = new Date(t.depart_date + 'T00:00:00');
+      const ret = new Date(t.return_date + 'T00:00:00');
+      const diff = Math.ceil((depart - today) / 86400000);
+      const isActive = today >= depart && today <= ret;
+      const isPast = today > ret;
+      const status = isPast ? 'past' : isActive ? 'active' : 'upcoming';
+      const statusLabel = isPast ? 'Completed' : isActive ? '● Live now' : 'Upcoming';
+      const tripId = t.id ? '?id=' + t.id : '';
+      return '<a href="layover-trip-detail.html' + tripId + '" class="trip-card">' +
+        '<div style="display:flex;align-items:flex-start;gap:12px">' +
+        '<div style="font-size:26px;flex-shrink:0;margin-top:2px">' + (t.cover_emoji||'✈️') + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+        '<div class="trip-route">' + escHtml(t.city) + (t.flag ? ' ' + t.flag : '') + '</div>' +
+        '<div class="trip-dates">' + fmtDate(t.depart_date) + ' – ' + fmtDate(t.return_date) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">' +
+        '<span class="trip-status ' + status + '">' + statusLabel + '</span>' +
+        (t.vibe ? '<span style="font-size:9px;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;background:var(--gold-dim);border:1px solid rgba(201,168,76,0.2);padding:2px 8px">' + t.vibe + '</span>' : '') +
+        '</div>' +
+        (t.notes ? '<div style="font-size:10px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(t.notes) + '</div>' : '') +
+        '</div></div></a>';
+    }).join('') + '</div>';
+    loadFeed(userTrips);
+  }
+
+  function renderTripMomentum(trips) {
+    const track = document.getElementById('tripMomentumTrack');
+    if (!track) return;
+    track.innerHTML = '';
+    const today = new Date();
+    const sorted = [...trips].sort((a,b) => {
+      const aD = new Date(a.depart_date+'T00:00:00'), aR = new Date(a.return_date+'T00:00:00');
+      const bD = new Date(b.depart_date+'T00:00:00'), bR = new Date(b.return_date+'T00:00:00');
+      const aActive = today >= aD && today <= aR, bActive = today >= bD && today <= bR;
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return aD - bD;
+    });
+    sorted.forEach(t => {
+      const depart = new Date(t.depart_date+'T00:00:00');
+      const ret = new Date(t.return_date+'T00:00:00');
+      const isActive = today >= depart && today <= ret;
+      const isPast = today > ret;
+      const daysAway = Math.ceil((depart - today) / 86400000);
+      const tripId = t.id ? '?id=' + t.id : '';
+      const card = document.createElement('a');
+      card.className = 'trip-momentum-card' + (isActive ? ' active-trip' : '');
+      card.href = 'layover-trip-detail.html' + tripId;
+      card.innerHTML =
+        (isActive ? '<div class="tmc-live-dot"></div>' : '') +
+        '<div class="tmc-emoji">' + (t.cover_emoji||'✈️') + '</div>' +
+        '<div class="tmc-city">' + t.city + (t.flag ? ' '+t.flag : '') + '</div>' +
+        '<div class="tmc-dates">' + new Date(t.depart_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + new Date(t.return_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) + '</div>' +
+        '<div class="tmc-countdown" style="' + (isPast ? 'color:var(--dim);font-size:18px' : isActive ? 'color:var(--green);font-size:18px' : '') + '">' + (isPast ? 'Done' : isActive ? 'LIVE' : daysAway) + '</div>' +
+        '<div class="tmc-countdown-lbl">' + (isPast ? 'Completed' : isActive ? 'Happening now' : 'days away') + '</div>';
+      track.appendChild(card);
+    });
+    const addCard = document.createElement('div');
+    addCard.className = 'trip-momentum-card tmc-add';
+    addCard.onclick = openModal;
+    addCard.innerHTML = '<div style="font-size:22px;opacity:0.4;color:var(--gold)">+</div><div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim)">New Trip</div>';
+    track.appendChild(addCard);
+  }
+
+  async function showDemoOverlap() {
+    const banner = document.getElementById('overlapAlert');
+    if (!currentUser || !userTrips.length) {
+      // No trips — hide banner
+      banner.classList.remove('show');
+      return;
+    }
+
+    try {
+      // Get accepted friend IDs
+      const { data: friendships } = await db
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .or('requester_id.eq.' + currentUser.id + ',addressee_id.eq.' + currentUser.id)
+        .eq('status', 'accepted');
+
+      if (!friendships || !friendships.length) { banner.classList.remove('show'); return; }
+
+      const friendIds = friendships.map(f => f.requester_id === currentUser.id ? f.addressee_id : f.requester_id);
+
+      // Get friend trips
+      const { data: friendTrips } = await db
+        .from('trips')
+        .select('user_id, city, depart_date, return_date')
+        .in('user_id', friendIds)
+        .gte('return_date', new Date().toISOString().split('T')[0]);
+
+      // Get friend profiles
+      const { data: profiles } = await db
+        .from('profiles')
+        .select('id, first_name, username')
+        .in('id', friendIds);
+
+      if (!friendTrips || !friendTrips.length) { banner.classList.remove('show'); return; }
+
+      const today = new Date();
+      const myUpcoming = userTrips.filter(t => new Date(t.return_date + 'T00:00:00') >= today);
+
+      for (const myTrip of myUpcoming) {
+        const myD = new Date(myTrip.depart_date + 'T00:00:00');
+        const myR = new Date(myTrip.return_date + 'T00:00:00');
+        for (const ft of friendTrips) {
+          if (ft.city.toLowerCase() !== myTrip.city.toLowerCase()) continue;
+          const fD = new Date(ft.depart_date + 'T00:00:00');
+          const fR = new Date(ft.return_date + 'T00:00:00');
+          if (myD <= fR && myR >= fD) {
+            const profile = (profiles || []).find(p => p.id === ft.user_id);
+            const fname = profile ? (profile.first_name || profile.username || 'A friend') : 'A friend';
+            const overlapDays = Math.round((Math.min(myR, fR) - Math.max(myD, fD)) / 86400000) + 1;
+            document.getElementById('oa-text-main').innerHTML = 'You overlap with <strong>' + fname + '</strong> in ' + myTrip.city + '!';
+            document.getElementById('oa-text-sub').textContent = overlapDays + ' day' + (overlapDays !== 1 ? 's' : '') + ' together · ' + myTrip.depart_date;
+            document.getElementById('oa-cta-btn').onclick = () => { window.location.href = 'layover-trip-detail.html?id=' + myTrip.id; };
+            banner.classList.add('show');
+            return;
+          }
+        }
+      }
+      // No real overlaps found
+      banner.classList.remove('show');
+    } catch(e) {
+      console.warn('Overlap check failed:', e.message);
+      banner.classList.remove('show');
+    }
+  }
+
+  function loadFeed(trips) {
+    const feedEl = document.getElementById('feed-list');
+    if (!feedEl) return;
+    const items = [];
+    const today = new Date();
+    (trips||[]).slice(0,2).forEach(t => {
+      const depart = new Date(t.depart_date+'T00:00:00');
+      const daysAway = Math.ceil((depart - today) / 86400000);
+      const isActive = daysAway < 0 && today <= new Date(t.return_date+'T00:00:00');
+      if (isActive) items.push({ av:window._myInitial||'?', text:'You are currently in <em>'+t.city+'</em>', time:'Right now', tag:'live', tagLabel:'Live' });
+      else if (daysAway > 0 && daysAway <= 30) items.push({ av:window._myInitial||'?', text:'Your trip to <em>'+t.city+'</em> is in '+daysAway+' days', time:'Upcoming', tag:'trip', tagLabel:'Trip' });
+    });
+    items.push(
+      { av:'A', text:'<strong>Alex Chen</strong> added a trip to <em>Tokyo</em>', time:'2 min ago', tag:'trip', tagLabel:'Trip' },
+      { av:'J', text:'<strong>Julia Santos</strong> is now in <em>London</em>', time:'1 hr ago', tag:'live', tagLabel:'Live' },
+      { av:'M', text:'<strong>Marcus Lee</strong> accepted your friend request', time:'3 hr ago', tag:null },
+    );
+    feedEl.innerHTML = items.slice(0,5).map(item =>
+      '<div class="feed-item-real">' +
+      '<div class="feed-av">' + item.av + '</div>' +
+      '<div class="feed-body-real">' +
+      '<div class="feed-text-real">' + item.text + '</div>' +
+      '<div class="feed-time-real">' + item.time + '</div>' +
+      (item.tag ? '<div class="feed-tag '+item.tag+'">'+item.tagLabel+'</div>' : '') +
+      '</div></div>'
+    ).join('');
+  }
+
+  // ── SAVE TRIP ─────────────────────────────────────────────
+  async function saveTrip() {
+    const city = document.getElementById('t-city').value.trim();
+    const from = document.getElementById('t-from').value;
+    const to = document.getElementById('t-to').value;
+    const notes = document.getElementById('t-notes').value.trim();
+    if (!city || !from || !to) { showToast('Please fill in city and dates.','⚠️'); return; }
+    const btn = document.getElementById('save-trip-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const { data, error } = await db.from('trips').insert([{
+        user_id: currentUser.id, city,
+        country: selectedCityObj?.country || null,
+        flag: selectedCityObj?.flag || '✈️',
+        depart_date: from, return_date: to, notes,
+        vibe: selectedVibe, cover_emoji: selectedEmoji, visibility: selectedPrivacy
+      }]).select();
+      if (error) throw error;
+      userTrips.push(data[0]);
+      userTrips.sort((a,b) => new Date(a.depart_date) - new Date(b.depart_date));
+      renderTrips();
+      closeModal();
+      showToast('Trip to ' + city + ' saved! ✈', '');
+    } catch(err) {
+      console.warn('Could not save trip:', err.message);
+      showToast('Trip saved locally! ✈', '');
+      closeModal();
+    }
+    btn.disabled = false; btn.textContent = 'Post Trip ✈';
+  }
+
+  // ── INVITE ────────────────────────────────────────────────
+  function showDashInvite() {
+    document.getElementById('inviteModal').classList.add('open');
+    if (currentUser) {
+      const username = (currentUser.user_metadata||{}).username || currentUser.email.split('@')[0];
+      const link = window.location.origin + '/layover-landing.html?ref=' + encodeURIComponent(username);
+      document.getElementById('dashInviteLink').value = link;
+    }
+  }
+  function copyDashInvite() {
+    navigator.clipboard.writeText(document.getElementById('dashInviteLink').value).then(() => showToast('Invite link copied!'));
+  }
+  function dashShareNative() {
+    const link = document.getElementById('dashInviteLink').value;
+    if (navigator.share) navigator.share({ title:'Join me on Layover', url:link });
+    else copyDashInvite();
+  }
+
+  function showWelcomeModal() { document.getElementById('welcomeModal').classList.add('open'); }
+  function closeWelcomeModal() { document.getElementById('welcomeModal').classList.remove('open'); }
+
+  // ── MODAL ─────────────────────────────────────────────────
+  function openModal() { document.getElementById('modal').classList.add('open'); setTimeout(() => document.getElementById('t-city').focus(), 100); }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.getElementById('t-city').value = '';
+    document.getElementById('t-from').value = '';
+    document.getElementById('t-to').value = '';
+    document.getElementById('t-notes').value = '';
+    selectedCityObj = null; selectedVibe = 'adventure'; selectedEmoji = '✈️';
+    document.querySelectorAll('.vibe-btn').forEach((b,i) => b.classList.toggle('sel', i===0));
+    document.querySelectorAll('.emoji-opt').forEach((b,i) => b.classList.toggle('sel', i===0));
+    const dd = document.getElementById('cityDropdown');
+    if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
+  }
+
+  // ── CITY SEARCH ───────────────────────────────────────────
+  const SEED_CITIES = [
+    {n:"New York City",c:"United States",f:"🇺🇸"},{n:"Los Angeles",c:"United States",f:"🇺🇸"},{n:"Chicago",c:"United States",f:"🇺🇸"},{n:"Houston",c:"United States",f:"🇺🇸"},{n:"Miami",c:"United States",f:"🇺🇸"},{n:"Atlanta",c:"United States",f:"🇺🇸"},{n:"Seattle",c:"United States",f:"🇺🇸"},{n:"Boston",c:"United States",f:"🇺🇸"},{n:"San Francisco",c:"United States",f:"🇺🇸"},{n:"Dallas",c:"United States",f:"🇺🇸"},{n:"Denver",c:"United States",f:"🇺🇸"},{n:"Las Vegas",c:"United States",f:"🇺🇸"},{n:"Nashville",c:"United States",f:"🇺🇸"},{n:"Austin",c:"United States",f:"🇺🇸"},{n:"Phoenix",c:"United States",f:"🇺🇸"},{n:"Portland OR",c:"United States",f:"🇺🇸"},{n:"New Orleans",c:"United States",f:"🇺🇸"},{n:"San Diego",c:"United States",f:"🇺🇸"},{n:"Washington DC",c:"United States",f:"🇺🇸"},{n:"Newark",c:"United States",f:"🇺🇸"},{n:"Honolulu",c:"United States",f:"🇺🇸"},{n:"Salt Lake City",c:"United States",f:"🇺🇸"},
+    {n:"London",c:"United Kingdom",f:"🇬🇧"},{n:"Manchester",c:"United Kingdom",f:"🇬🇧"},{n:"Edinburgh",c:"United Kingdom",f:"🇬🇧"},{n:"Dublin",c:"Ireland",f:"🇮🇪"},
+    {n:"Paris",c:"France",f:"🇫🇷"},{n:"Nice",c:"France",f:"🇫🇷"},{n:"Lyon",c:"France",f:"🇫🇷"},
+    {n:"Berlin",c:"Germany",f:"🇩🇪"},{n:"Munich",c:"Germany",f:"🇩🇪"},{n:"Hamburg",c:"Germany",f:"🇩🇪"},
+    {n:"Madrid",c:"Spain",f:"🇪🇸"},{n:"Barcelona",c:"Spain",f:"🇪🇸"},{n:"Ibiza",c:"Spain",f:"🇪🇸"},{n:"Seville",c:"Spain",f:"🇪🇸"},
+    {n:"Rome",c:"Italy",f:"🇮🇹"},{n:"Milan",c:"Italy",f:"🇮🇹"},{n:"Florence",c:"Italy",f:"🇮🇹"},{n:"Venice",c:"Italy",f:"🇮🇹"},{n:"Amalfi",c:"Italy",f:"🇮🇹"},
+    {n:"Lisbon",c:"Portugal",f:"🇵🇹"},{n:"Porto",c:"Portugal",f:"🇵🇹"},
+    {n:"Amsterdam",c:"Netherlands",f:"🇳🇱"},{n:"Brussels",c:"Belgium",f:"🇧🇪"},{n:"Bruges",c:"Belgium",f:"🇧🇪"},
+    {n:"Stockholm",c:"Sweden",f:"🇸🇪"},{n:"Oslo",c:"Norway",f:"🇳🇴"},{n:"Copenhagen",c:"Denmark",f:"🇩🇰"},{n:"Helsinki",c:"Finland",f:"🇫🇮"},{n:"Reykjavik",c:"Iceland",f:"🇮🇸"},
+    {n:"Prague",c:"Czech Republic",f:"🇨🇿"},{n:"Budapest",c:"Hungary",f:"🇭🇺"},{n:"Vienna",c:"Austria",f:"🇦🇹"},{n:"Warsaw",c:"Poland",f:"🇵🇱"},{n:"Kraków",c:"Poland",f:"🇵🇱"},{n:"Athens",c:"Greece",f:"🇬🇷"},{n:"Santorini",c:"Greece",f:"🇬🇷"},{n:"Mykonos",c:"Greece",f:"🇬🇷"},{n:"Dubrovnik",c:"Croatia",f:"🇭🇷"},
+    {n:"Dubai",c:"UAE",f:"🇦🇪"},{n:"Abu Dhabi",c:"UAE",f:"🇦🇪"},{n:"Istanbul",c:"Turkey",f:"🇹🇷"},{n:"Tel Aviv",c:"Israel",f:"🇮🇱"},{n:"Marrakech",c:"Morocco",f:"🇲🇦"},
+    {n:"Tokyo",c:"Japan",f:"🇯🇵"},{n:"Osaka",c:"Japan",f:"🇯🇵"},{n:"Kyoto",c:"Japan",f:"🇯🇵"},{n:"Seoul",c:"South Korea",f:"🇰🇷"},{n:"Beijing",c:"China",f:"🇨🇳"},{n:"Shanghai",c:"China",f:"🇨🇳"},{n:"Hong Kong",c:"Hong Kong",f:"🇭🇰"},{n:"Singapore",c:"Singapore",f:"🇸🇬"},{n:"Bangkok",c:"Thailand",f:"🇹🇭"},{n:"Bali",c:"Indonesia",f:"🇮🇩"},{n:"Phuket",c:"Thailand",f:"🇹🇭"},{n:"Chiang Mai",c:"Thailand",f:"🇹🇭"},
+    {n:"Mumbai",c:"India",f:"🇮🇳"},{n:"Delhi",c:"India",f:"🇮🇳"},{n:"Goa",c:"India",f:"🇮🇳"},
+    {n:"Sydney",c:"Australia",f:"🇦🇺"},{n:"Melbourne",c:"Australia",f:"🇦🇺"},{n:"Auckland",c:"New Zealand",f:"🇳🇿"},{n:"Queenstown",c:"New Zealand",f:"🇳🇿"},
+    {n:"Toronto",c:"Canada",f:"🇨🇦"},{n:"Vancouver",c:"Canada",f:"🇨🇦"},{n:"Montreal",c:"Canada",f:"🇨🇦"},
+    {n:"Mexico City",c:"Mexico",f:"🇲🇽"},{n:"Cancún",c:"Mexico",f:"🇲🇽"},{n:"Tulum",c:"Mexico",f:"🇲🇽"},
+    {n:"Rio de Janeiro",c:"Brazil",f:"🇧🇷"},{n:"São Paulo",c:"Brazil",f:"🇧🇷"},{n:"Buenos Aires",c:"Argentina",f:"🇦🇷"},{n:"Lima",c:"Peru",f:"🇵🇪"},{n:"Medellín",c:"Colombia",f:"🇨🇴"},{n:"Cartagena",c:"Colombia",f:"🇨🇴"},
+    {n:"Cape Town",c:"South Africa",f:"🇿🇦"},{n:"Nairobi",c:"Kenya",f:"🇰🇪"},{n:"Zanzibar",c:"Tanzania",f:"🇹🇿"},{n:"Accra",c:"Ghana",f:"🇬🇭"},
+  ];
+
+  let cityFocusIndex = -1;
+  let searchDebounce;
+
+  function citySearch(q) {
+    clearTimeout(searchDebounce);
+    const dd = document.getElementById('cityDropdown');
+    if (!q || q.length < 1) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+    const matches = SEED_CITIES.filter(c => c.n.toLowerCase().includes(q.toLowerCase()) || c.c.toLowerCase().includes(q.toLowerCase())).slice(0,10);
+    renderCityDropdown(matches, q);
+    searchDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch('https://countriesnow.space/api/v0.1/countries/cities/q?query=' + encodeURIComponent(q));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.data && data.data.length) {
+          const existing = new Set(matches.map(s => s.n.toLowerCase()));
+          const extra = data.data.filter(n => !existing.has(n.toLowerCase()) && n.toLowerCase().includes(q.toLowerCase())).slice(0,5).map(n => ({ n, c:'—', f:'' }));
+          if (extra.length) renderCityDropdown([...matches, ...extra].slice(0,10), q);
+        }
+      } catch {}
+    }, 350);
+  }
+
+  function renderCityDropdown(cities, q) {
+    const dd = document.getElementById('cityDropdown');
+    if (!cities.length) { dd.classList.remove('open'); return; }
+    cityFocusIndex = -1;
+    const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    dd.innerHTML = cities.map((city, i) => {
+      const hi = city.n.replace(new RegExp('(' + safeQ + ')', 'gi'), '<strong style="color:var(--cream)">$1</strong>');
+      const sn = city.n.replace(/'/g,"\\'"), sc = city.c.replace(/'/g,"\\'");
+      return '<div class="city-opt" data-name="'+city.n+'" data-i="'+i+'" onclick="selectCity(\''+sn+'\',\''+sc+'\',\''+city.f+'\')"><span class="city-opt-flag">'+city.f+'</span><span class="city-opt-name">'+hi+'</span><span class="city-opt-country">'+city.c+'</span></div>';
+    }).join('');
+    dd.classList.add('open');
+  }
+
+  function selectCity(name, country, flag) {
+    document.getElementById('t-city').value = name;
+    selectedCityObj = { name, country, flag };
+    const dd = document.getElementById('cityDropdown');
+    dd.classList.remove('open'); dd.innerHTML = '';
+  }
+
+  function cityKey(e) {
+    const dd = document.getElementById('cityDropdown');
+    const opts = dd.querySelectorAll('.city-opt');
+    if (!opts.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); cityFocusIndex = Math.min(cityFocusIndex+1, opts.length-1); opts.forEach((o,i) => o.classList.toggle('focused', i===cityFocusIndex)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); cityFocusIndex = Math.max(cityFocusIndex-1, 0); opts.forEach((o,i) => o.classList.toggle('focused', i===cityFocusIndex)); }
+    else if (e.key === 'Enter' && cityFocusIndex >= 0) { e.preventDefault(); const opt = opts[cityFocusIndex]; selectCity(opt.dataset.name, opt.dataset.country||'', opt.dataset.flag||''); }
+    else if (e.key === 'Escape') dd.classList.remove('open');
+  }
+
+  document.addEventListener('click', e => { if (!e.target.closest('.city-wrap')) { const dd = document.getElementById('cityDropdown'); if (dd) dd.classList.remove('open'); } });
+
+  function selVibe(btn, vibe) { selectedVibe = vibe; document.querySelectorAll('.vibe-btn').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); }
+  function selEmoji(btn, emoji) { selectedEmoji = emoji; document.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); }
+  function selPrivacy(btn, val) { document.querySelectorAll('.privacy-opt').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); selectedPrivacy = val; }
+
+  // ── TOAST ─────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, icon='') {
+    const t = document.getElementById('toast');
+    t.innerHTML = '<span>' + icon + '</span>' + msg;
+    t.classList.add('show','gold');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────
+  function fmtDate(d) { return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+  function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // ── CURSOR ────────────────────────────────────────────────
+  const cur = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+  let mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  (function tick(){ cur.style.left=mx+'px'; cur.style.top=my+'px'; rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(tick); })();
+
+  // ── BOOT ──────────────────────────────────────────────────
+  function dismissLoader() { const l=document.getElementById('pageLoader'); if(l){l.classList.add('done');setTimeout(()=>l.remove(),400);} }
+  window.addEventListener('load', () => setTimeout(dismissLoader, 400));
+  setTimeout(dismissLoader, 3000);
+  function setAppHeight() { document.documentElement.style.setProperty('--app-height', window.innerHeight+'px'); }
+  setAppHeight(); window.addEventListener('resize', setAppHeight); window.addEventListener('orientationchange', () => setTimeout(setAppHeight,100));
+
+  init();
+</script>
+</body>
+</html>
